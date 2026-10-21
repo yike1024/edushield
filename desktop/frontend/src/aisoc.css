@@ -1,0 +1,463 @@
+/*
+ * AiSOC 大脑平台面板工具样式
+ * 项目本体使用自定义 dark 主题 + BEM，未引入 Tailwind；
+ * 但 AiSOC 相关组件（AisocDashboard / RealtimePanel）按接口脚手架使用了
+ * Tailwind 风格的工具类。这里提供一个自包含的实现，避免引入 Tailwind 构建链，
+ * 也不触碰现有 styles.css（现有 CSS 检查脚本只针对 styles.css）。
+ *
+ * 与主题对齐：所有颜色均通过主题 CSS 变量（--bg / --surface / --border /
+ * --text / --accent / --accent-strong / --ok / --warn / --err …）解析，
+ * 因此会自动跟随「安全控制台 console」主题的深/浅两种形态。
+ *
+ * 命名：裸工具类（flex/grid/text-*、bg-*、rounded 等），与 styles.css 无冲突。
+ */
+
+/* ============ 语义外壳 ============ */
+.aisoc-shell {
+  background: var(--bg, #05080d);
+  color: var(--text, #e8f0f7);
+}
+.aisoc-shell table { border-collapse: collapse; }
+.aisoc-shell input[type="checkbox"] {
+  accent-color: var(--accent, #0057ff);
+}
+
+.aisoc-header {
+  background: var(--grad, linear-gradient(120deg, #0057ff, #00e5ff));
+}
+
+/* ============ 基础 ============ */
+.aisoc-shell,
+.aisoc-shell * { box-sizing: border-box; }
+
+/* ============ 颜色板（映射到主题变量） ============ */
+
+/* —— 强调色（原 fuchsia/violet/indigo → 电光蓝/霓虹青）—— */
+.bg-fuchsia-50 { background-color: var(--accent-soft, color-mix(in srgb, var(--accent, #0057ff) 14%, transparent)); }
+.bg-fuchsia-100 { background-color: color-mix(in srgb, var(--accent, #0057ff) 20%, transparent); }
+.bg-fuchsia-500 { background-color: var(--accent-strong, #00e5ff); }
+.bg-fuchsia-600 { background-color: var(--accent, #0057ff); }
+.bg-fuchsia-700 { background-color: color-mix(in srgb, var(--accent, #0057ff) 82%, #000); }
+.bg-fuchsia-800 { background-color: color-mix(in srgb, var(--accent, #0057ff) 64%, #000); }
+.text-fuchsia-600 { color: var(--accent-strong, #00e5ff); }
+.text-fuchsia-700 { color: var(--accent-strong, #00e5ff); }
+.text-fuchsia-800 { color: var(--accent-strong, #00e5ff); }
+.border-fuchsia-200 { border-color: var(--border-2, rgba(0, 229, 255, 0.30)); }
+.ring-fuchsia-200 { --tw-ring-color: var(--border-2, rgba(0, 229, 255, 0.30)); }
+.ring-fuchsia-300 { --tw-ring-color: var(--accent-strong, #00e5ff); }
+
+.bg-violet-50 { background-color: color-mix(in srgb, #7c3aed 18%, transparent); }
+.bg-violet-600 { background-color: #7c3aed; }
+.text-violet-700 { color: #b18cff; }
+
+.bg-indigo-600 { background-color: #3b5bdb; }
+
+/* —— 中性色（原 zinc/gray → 主题 surface/text/border）—— */
+.bg-zinc-50 { background-color: var(--bg-soft, #070c14); }
+.bg-zinc-100 { background-color: var(--bg-elev-2, #0e1a2e); }
+.bg-zinc-200 { background-color: var(--bg-elev-2, #0e1a2e); }
+.bg-zinc-300 { background-color: var(--control-disabled-bg, #0e1a2e); }
+.bg-zinc-400 { background-color: var(--text-3, #5b7085); }
+.bg-zinc-500 { background-color: var(--text-3, #5b7085); }
+.text-zinc-300 { color: var(--text-3, #5b7085); }
+.text-zinc-400 { color: var(--text-3, #5b7085); }
+.text-zinc-500 { color: var(--text-2, #9fb4c8); }
+.text-zinc-600 { color: var(--text-2, #9fb4c8); }
+.text-zinc-700 { color: var(--text, #e8f0f7); }
+.text-zinc-800 { color: var(--text, #e8f0f7); }
+.border-zinc-100 { border-color: var(--border-soft, rgba(0, 229, 255, 0.08)); }
+.border-zinc-200 { border-color: var(--border, rgba(0, 229, 255, 0.16)); }
+.border-zinc-300 { border-color: var(--border-2, rgba(0, 229, 255, 0.30)); }
+
+.bg-gray-50 { background-color: var(--bg-soft, #070c14); }
+.bg-gray-100 { background-color: var(--bg-elev-2, #0e1a2e); }
+.bg-gray-200 { background-color: var(--bg-elev-2, #0e1a2e); }
+.bg-gray-300 { background-color: var(--border-2, rgba(0, 229, 255, 0.30)); }
+.bg-gray-400 { background-color: var(--text-3, #5b7085); }
+.text-gray-400 { color: var(--text-3, #5b7085); }
+.text-gray-500 { color: var(--text-2, #9fb4c8); }
+.text-gray-600 { color: var(--text-2, #9fb4c8); }
+.text-gray-700 { color: var(--text, #e8f0f7); }
+.text-gray-800 { color: var(--text, #e8f0f7); }
+.border-gray-200 { border-color: var(--border, rgba(0, 229, 255, 0.16)); }
+.border-gray-300 { border-color: var(--border, rgba(0, 229, 255, 0.16)); }
+.border-gray-400 { border-color: var(--border-2, rgba(0, 229, 255, 0.30)); }
+
+/* —— 成功（原 emerald/green → 荧光绿 --ok）—— */
+.bg-emerald-50 { background-color: color-mix(in srgb, var(--ok, #00ff9d) 12%, transparent); }
+.bg-emerald-100 { background-color: color-mix(in srgb, var(--ok, #00ff9d) 18%, transparent); }
+.bg-emerald-200 { background-color: color-mix(in srgb, var(--ok, #00ff9d) 26%, transparent); }
+.bg-emerald-300 { background-color: var(--ok, #00ff9d); }
+.bg-emerald-500 { background-color: var(--ok, #00ff9d); }
+.text-emerald-700 { color: var(--ok, #00ff9d); }
+.text-emerald-800 { color: var(--ok, #00ff9d); }
+.border-emerald-200 { border-color: color-mix(in srgb, var(--ok, #00ff9d) 40%, transparent); }
+.ring-emerald-300 { --tw-ring-color: var(--ok, #00ff9d); }
+
+.bg-green-50 { background-color: color-mix(in srgb, var(--ok, #00ff9d) 12%, transparent); }
+.bg-green-100 { background-color: color-mix(in srgb, var(--ok, #00ff9d) 18%, transparent); }
+.bg-green-200 { background-color: color-mix(in srgb, var(--ok, #00ff9d) 26%, transparent); }
+.bg-green-500 { background-color: var(--ok, #00ff9d); }
+.text-green-500 { color: var(--ok, #00ff9d); }
+.text-green-600 { color: var(--ok, #00ff9d); }
+.text-green-700 { color: var(--ok, #00ff9d); }
+.text-green-800 { color: var(--ok, #00ff9d); }
+.border-green-200 { border-color: color-mix(in srgb, var(--ok, #00ff9d) 40%, transparent); }
+.border-green-300 { border-color: color-mix(in srgb, var(--ok, #00ff9d) 55%, transparent); }
+
+/* —— 警告（原 amber/yellow → 金色 --warn）—— */
+.bg-amber-50 { background-color: color-mix(in srgb, var(--warn, #ffd700) 12%, transparent); }
+.bg-amber-100 { background-color: color-mix(in srgb, var(--warn, #ffd700) 18%, transparent); }
+.bg-amber-300 { background-color: var(--warn, #ffd700); }
+.bg-amber-500 { background-color: var(--warn, #ffd700); }
+.text-amber-700 { color: var(--warn, #ffd700); }
+.text-amber-800 { color: var(--warn, #ffd700); }
+.border-amber-200 { border-color: color-mix(in srgb, var(--warn, #ffd700) 40%, transparent); }
+.ring-amber-300 { --tw-ring-color: var(--warn, #ffd700); }
+
+.bg-yellow-50 { background-color: color-mix(in srgb, var(--warn, #ffd700) 12%, transparent); }
+.bg-yellow-100 { background-color: color-mix(in srgb, var(--warn, #ffd700) 18%, transparent); }
+.bg-yellow-200 { background-color: color-mix(in srgb, var(--warn, #ffd700) 26%, transparent); }
+.text-yellow-500 { color: var(--warn, #ffd700); }
+.text-yellow-700 { color: var(--warn, #ffd700); }
+.text-yellow-800 { color: var(--warn, #ffd700); }
+.border-yellow-200 { border-color: color-mix(in srgb, var(--warn, #ffd700) 40%, transparent); }
+.border-yellow-300 { border-color: color-mix(in srgb, var(--warn, #ffd700) 55%, transparent); }
+
+/* —— 危险/错误（原 rose/red → --err / --danger）—— */
+.bg-rose-50 { background-color: color-mix(in srgb, var(--err, #ff5c7a) 12%, transparent); }
+.bg-rose-100 { background-color: color-mix(in srgb, var(--err, #ff5c7a) 18%, transparent); }
+.bg-rose-300 { background-color: var(--err, #ff5c7a); }
+.bg-rose-500 { background-color: var(--err, #ff5c7a); }
+.bg-rose-600 { background-color: var(--danger, #ff2d55); }
+.text-rose-700 { color: var(--err, #ff5c7a); }
+.text-rose-800 { color: var(--err, #ff5c7a); }
+.border-rose-200 { border-color: color-mix(in srgb, var(--err, #ff5c7a) 40%, transparent); }
+.ring-rose-300 { --tw-ring-color: var(--err, #ff5c7a); }
+
+.bg-red-50 { background-color: color-mix(in srgb, var(--err, #ff5c7a) 12%, transparent); }
+.bg-red-100 { background-color: color-mix(in srgb, var(--err, #ff5c7a) 18%, transparent); }
+.bg-red-200 { background-color: color-mix(in srgb, var(--err, #ff5c7a) 26%, transparent); }
+.bg-red-500 { background-color: var(--err, #ff5c7a); }
+.text-red-500 { color: var(--err, #ff5c7a); }
+.text-red-600 { color: var(--err, #ff5c7a); }
+.text-red-700 { color: var(--err, #ff5c7a); }
+.text-red-800 { color: var(--err, #ff5c7a); }
+.border-red-200 { border-color: color-mix(in srgb, var(--err, #ff5c7a) 40%, transparent); }
+.border-red-300 { border-color: color-mix(in srgb, var(--err, #ff5c7a) 55%, transparent); }
+
+/* —— 信息/分析（原 sky/blue → 电光蓝 --accent）—— */
+.bg-sky-50 { background-color: var(--accent-soft, color-mix(in srgb, var(--accent, #0057ff) 14%, transparent)); }
+.bg-sky-100 { background-color: color-mix(in srgb, var(--accent, #0057ff) 18%, transparent); }
+.bg-sky-300 { background-color: var(--accent-strong, #00e5ff); }
+.bg-sky-500 { background-color: var(--accent, #0057ff); }
+.text-sky-700 { color: var(--accent-strong, #00e5ff); }
+.text-sky-800 { color: var(--accent-strong, #00e5ff); }
+.border-sky-200 { border-color: color-mix(in srgb, var(--accent, #0057ff) 40%, transparent); }
+.ring-sky-300 { --tw-ring-color: var(--accent-strong, #00e5ff); }
+
+.bg-blue-50 { background-color: var(--accent-soft, color-mix(in srgb, var(--accent, #0057ff) 14%, transparent)); }
+.bg-blue-100 { background-color: color-mix(in srgb, var(--accent, #0057ff) 18%, transparent); }
+.bg-blue-200 { background-color: color-mix(in srgb, var(--accent, #0057ff) 26%, transparent); }
+.bg-blue-500 { background-color: var(--accent, #0057ff); }
+.text-blue-500 { color: var(--accent, #0057ff); }
+.text-blue-600 { color: var(--accent, #0057ff); }
+.text-blue-700 { color: var(--accent, #0057ff); }
+.text-blue-800 { color: var(--accent-strong, #00e5ff); }
+.border-blue-200 { border-color: color-mix(in srgb, var(--accent, #0057ff) 40%, transparent); }
+.border-blue-300 { border-color: color-mix(in srgb, var(--accent, #0057ff) 55%, transparent); }
+.border-blue-500 { border-color: var(--accent, #0057ff); }
+
+/* —— 中危（原 orange 保留橙调，深色下可读）—— */
+.bg-orange-50 { background-color: color-mix(in srgb, #ff9a3d 12%, transparent); }
+.bg-orange-100 { background-color: color-mix(in srgb, #ff9a3d 18%, transparent); }
+.bg-orange-200 { background-color: color-mix(in srgb, #ff9a3d 26%, transparent); }
+.text-orange-700 { color: #ffb25e; }
+.text-orange-800 { color: #ffc98a; }
+.border-orange-200 { border-color: color-mix(in srgb, #ff9a3d 40%, transparent); }
+
+/* —— 白 / 黑 —— */
+.bg-white { background-color: var(--surface, #080e17); }
+.text-white { color: #ffffff; }
+.bg-black { background-color: #000000; }
+
+/* 半透明（Tailwind /xx 语法；用于彩色渐变背景上的按钮/图标） */
+.bg-white\/10 { background-color: rgba(255,255,255,0.10); }
+.bg-white\/15 { background-color: rgba(255,255,255,0.15); }
+.bg-white\/20 { background-color: rgba(255,255,255,0.20); }
+.bg-white\/60 { background-color: rgba(255,255,255,0.60); }
+.bg-white\/70 { background-color: rgba(255,255,255,0.70); }
+.bg-black\/5 { background-color: rgba(0,0,0,0.05); }
+.bg-fuchsia-50\/40 { background-color: color-mix(in srgb, var(--accent, #0057ff) 12%, transparent); }
+.hover\:bg-fuchsia-50\/50:hover { background-color: color-mix(in srgb, var(--accent, #0057ff) 14%, transparent); }
+
+/* ============ Flex ============ */
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.flex-col { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-1 { flex: 1 1 0%; }
+.flex-none { flex: none; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.items-end { align-items: flex-end; }
+.items-stretch { align-items: stretch; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-start { justify-content: flex-start; }
+.justify-end { justify-content: flex-end; }
+.gap-1 { gap: 0.25rem; }
+.gap-1\.5 { gap: 0.375rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+.space-y-1 > * + * { margin-top: 0.25rem; }
+.space-y-2 > * + * { margin-top: 0.5rem; }
+
+/* ============ Grid ============ */
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.grid-rows-2 { grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.col-span-4 { grid-column: span 4 / span 4; }
+.col-span-8 { grid-column: span 8 / span 8; }
+
+/* ============ 尺寸 ============ */
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.min-w-0 { min-width: 0; }
+.min-h-0 { min-height: 0; }
+.w-screen { width: 100vw; }
+.h-screen { height: 100vh; }
+.w-1\.5 { width: 0.375rem; }
+.h-1\.5 { height: 0.375rem; }
+.w-2 { width: 0.5rem; }
+.h-2 { height: 0.5rem; }
+.w-2\.5 { width: 0.625rem; }
+.h-2\.5 { height: 0.625rem; }
+.w-3 { width: 0.75rem; }
+.h-3 { height: 0.75rem; }
+.w-3\.5 { width: 0.875rem; }
+.h-3\.5 { height: 0.875rem; }
+.w-4 { width: 1rem; }
+.h-4 { height: 1rem; }
+.w-5 { width: 1.25rem; }
+.h-5 { height: 1.25rem; }
+.w-7 { width: 1.75rem; }
+.h-7 { height: 1.75rem; }
+.w-8 { width: 2rem; }
+.h-8 { height: 2rem; }
+.w-12 { width: 3rem; }
+.h-12 { height: 3rem; }
+.w-14 { width: 3.5rem; }
+.h-14 { height: 3.5rem; }
+.h-24 { height: 6rem; }
+.h-28 { height: 7rem; }
+.h-32 { height: 8rem; }
+.h-60 { height: 15rem; }
+.h-96 { height: 24rem; }
+.max-w-200 { max-width: 12.5rem; }
+.max-w-260 { max-width: 16.25rem; }
+.max-h-24 { max-height: 6rem; }
+.max-h-60 { max-height: 15rem; }
+.max-h-64 { max-height: 16rem; }
+.shrink-0 { flex-shrink: 0; }
+.grow { flex-grow: 1; }
+
+/* ============ 文本 ============ */
+.text-10px { font-size: 10px; }
+.text-11px { font-size: 11px; }
+.text-xs { font-size: 0.75rem; line-height: 1rem; }
+.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+.text-base { font-size: 1rem; line-height: 1.5rem; }
+.text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+.text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+.text-2xl { font-size: 1.5rem; line-height: 2rem; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.font-normal { font-weight: 400; }
+.font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+.leading-snug { line-height: 1.375; }
+.leading-relaxed { line-height: 1.625; }
+.uppercase { text-transform: uppercase; }
+.tracking-wider { letter-spacing: 0.05em; }
+.italic { font-style: italic; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.whitespace-nowrap { white-space: nowrap; }
+.whitespace-pre-wrap { white-space: pre-wrap; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.opacity-70 { opacity: 0.7; }
+.opacity-80 { opacity: 0.8; }
+
+/* ============ 间距 ============ */
+.m-1 { margin: 0.25rem; }
+.m-4 { margin: 1rem; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+.mt-0\.5 { margin-top: 0.125rem; }
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 0.75rem; }
+.mb-0\.5 { margin-bottom: 0.125rem; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 0.75rem; }
+.mb-4 { margin-bottom: 1rem; }
+.ml-1 { margin-left: 0.25rem; }
+.ml-2 { margin-left: 0.5rem; }
+.mr-1 { margin-right: 0.25rem; }
+.mr-2 { margin-right: 0.5rem; }
+.p-1 { padding: 0.25rem; }
+.p-2 { padding: 0.5rem; }
+.p-3 { padding: 0.75rem; }
+.p-4 { padding: 1rem; }
+.px-1 { padding-left: 0.25rem; padding-right: 0.25rem; }
+.px-1\.5 { padding-left: 0.375rem; padding-right: 0.375rem; }
+.px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+.px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+.px-4 { padding-left: 1rem; padding-right: 1rem; }
+.px-5 { padding-left: 1.25rem; padding-right: 1.25rem; }
+.py-0\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.py-1\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+.py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+.py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+
+/* ============ 边框 & 圆角 ============ */
+.border { border-width: 1px; border-style: solid; border-color: var(--border, rgba(0, 229, 255, 0.16)); }
+.border-0 { border-width: 0; }
+.border-t { border-top-width: 1px; border-top-style: solid; border-top-color: var(--border, rgba(0, 229, 255, 0.16)); }
+.border-b { border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: var(--border, rgba(0, 229, 255, 0.16)); }
+.border-l-4 { border-left-width: 4px; border-left-style: solid; border-left-color: var(--border, rgba(0, 229, 255, 0.16)); }
+.border-b-2 { border-bottom-width: 2px; border-bottom-style: solid; border-bottom-color: var(--border, rgba(0, 229, 255, 0.16)); }
+.border-transparent { border-color: transparent; }
+.border-dashed { border-style: dashed; }
+.rounded { border-radius: var(--r-s, 4px); }
+.rounded-t { border-top-left-radius: var(--r-s, 4px); border-top-right-radius: var(--r-s, 4px); }
+.rounded-lg { border-radius: var(--r, 6px); }
+.rounded-xl { border-radius: var(--r-l, 8px); }
+.rounded-2xl { border-radius: var(--r-l, 8px); }
+.rounded-full { border-radius: 9999px; }
+
+/* ============ 阴影 & ring ============ */
+.shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.25); }
+.shadow-md { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3), 0 2px 4px -2px rgba(0,0,0,0.3); }
+.shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4), 0 4px 6px -4px rgba(0,0,0,0.4); }
+.shadow-xl { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.45), 0 8px 10px -6px rgba(0,0,0,0.45); }
+.shadow-fuchsia-200\/60 { box-shadow: 0 10px 20px -8px color-mix(in srgb, var(--accent-strong, #00e5ff) 45%, transparent); }
+.ring-1 { box-shadow: 0 0 0 1px var(--tw-ring-color, var(--border, rgba(0, 229, 255, 0.16))); }
+.ring-2 { box-shadow: 0 0 0 2px var(--tw-ring-color, var(--accent-strong, #00e5ff)); }
+
+/* ============ overflow ============ */
+.overflow-auto { overflow: auto; }
+.overflow-hidden { overflow: hidden; }
+.overflow-y-auto { overflow-y: auto; }
+.overflow-x-auto { overflow-x: auto; }
+
+/* ============ 定位 ============ */
+.sticky { position: sticky; }
+.static { position: static; }
+.fixed { position: fixed; }
+.relative { position: relative; }
+.absolute { position: absolute; }
+.top-0 { top: 0; }
+.right-0 { right: 0; }
+.bottom-0 { bottom: 0; }
+.left-0 { left: 0; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.-top-0\.5 { top: -0.125rem; }
+.-top-1 { top: -0.25rem; }
+.-top-1\.5 { top: -0.375rem; }
+.-top-2 { top: -0.5rem; }
+.-right-0\.5 { right: -0.125rem; }
+.-right-1 { right: -0.25rem; }
+.-right-1\.5 { right: -0.375rem; }
+.-right-2 { right: -0.5rem; }
+.-bottom-0\.5 { bottom: -0.125rem; }
+.-bottom-1 { bottom: -0.25rem; }
+.-left-0\.5 { left: -0.125rem; }
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+.pointer-events-none { pointer-events: none; }
+.pointer-events-auto { pointer-events: auto; }
+.border-current { border-color: currentColor; }
+
+/* ============ 渐变背景（Tailwind bg-gradient-to-br + from-/to- 任意配色） ============ */
+.bg-gradient-to-br {
+  background-image: linear-gradient(to bottom right, var(--tw-gradient-from, transparent), var(--tw-gradient-to, transparent));
+}
+.from-fuchsia-50\/30 { --tw-gradient-from: color-mix(in srgb, var(--accent, #0057ff) 14%, transparent); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, transparent); }
+.from-emerald-500\/10 { --tw-gradient-from: color-mix(in srgb, var(--ok, #00ff9d) 10%, transparent); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, transparent); }
+.from-fuchsia-500\/10 { --tw-gradient-from: color-mix(in srgb, var(--accent-strong, #00e5ff) 10%, transparent); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, transparent); }
+.to-white { --tw-gradient-to: var(--surface, #080e17); }
+.to-fuchsia-50 { --tw-gradient-to: color-mix(in srgb, var(--accent, #0057ff) 14%, transparent); }
+.to-emerald-50 { --tw-gradient-to: color-mix(in srgb, var(--ok, #00ff9d) 12%, transparent); }
+
+/* ============ 任意值大小/字号（Tailwind [...] 语法） ============ */
+.min-w-\[14px\] { min-width: 14px; }
+.min-w-\[16px\] { min-width: 16px; }
+.min-w-\[18px\] { min-width: 18px; }
+.min-w-\[20px\] { min-width: 20px; }
+.text-\[9px\] { font-size: 9px; line-height: 1; }
+.text-\[10px\] { font-size: 10px; line-height: 1.2; }
+.text-\[11px\] { font-size: 11px; line-height: 1.3; }
+.text-\[13px\] { font-size: 13px; line-height: 1.4; }
+
+/* ============ line-height 补充 ============ */
+.leading-none { line-height: 1; }
+.leading-tight { line-height: 1.25; }
+.leading-snug { line-height: 1.375; }
+.leading-relaxed { line-height: 1.625; }
+.leading-loose { line-height: 2; }
+
+/* ============ 光标 & 交互 ============ */
+.cursor-pointer { cursor: pointer; }
+.cursor-not-allowed { cursor: not-allowed; }
+
+/* ============ 动画 ============ */
+@keyframes aisoc-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-pulse { animation: aisoc-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+@keyframes aisoc-spin {
+  to { transform: rotate(360deg); }
+}
+.animate-spin { animation: aisoc-spin 1s linear infinite; }
+
+/* ============ 过渡（hover 微交互） ============ */
+.transition-colors { transition-property: color, background-color, border-color; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+.transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+.hover\:bg-gray-50:hover { background-color: var(--bg-soft, #070c14); }
+.hover\:bg-gray-100:hover { background-color: var(--bg-elev-2, #0e1a2e); }
+.hover\:bg-gray-200:hover { background-color: var(--bg-elev-2, #0e1a2e); }
+.hover\:bg-gray-300:hover { background-color: var(--border-2, rgba(0, 229, 255, 0.30)); }
+.hover\:bg-blue-100:hover { background-color: color-mix(in srgb, var(--accent, #0057ff) 18%, transparent); }
+.hover\:bg-fuchsia-700:hover { background-color: color-mix(in srgb, var(--accent, #0057ff) 82%, #000); }
+.hover\:bg-fuchsia-100:hover { background-color: color-mix(in srgb, var(--accent, #0057ff) 20%, transparent); }
+.hover\:bg-zinc-50:hover { background-color: var(--bg-soft, #070c14); }
+.hover\:bg-red-50:hover { background-color: color-mix(in srgb, var(--err, #ff5c7a) 12%, transparent); }
+.hover\:bg-white\/25:hover { background-color: rgba(255,255,255,0.25); }
+.hover\:text-gray-700:hover { color: var(--text, #e8f0f7); }
+.hover\:text-gray-800:hover { color: var(--text, #e8f0f7); }
+.hover\:text-blue-800:hover { color: var(--accent-strong, #00e5ff); }
+.hover\:text-red-800:hover { color: var(--err, #ff5c7a); }
+.hover\:text-zinc-600:hover { color: var(--text-2, #9fb4c8); }
+.hover\:text-zinc-800:hover { color: var(--text, #e8f0f7); }
+.hover\:shadow-md:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3), 0 2px 4px -2px rgba(0,0,0,0.3); }
+.active\:bg-fuchsia-800:active { background-color: color-mix(in srgb, var(--accent, #0057ff) 64%, #000); }
+.disabled\:bg-zinc-300:disabled { background-color: var(--control-disabled-bg, #0e1a2e); }
+.disabled\:cursor-not-allowed:disabled { cursor: not-allowed; }
+.disabled\:opacity-50:disabled { opacity: 0.5; }
+
+/* ============ 表单焦点环 ============ */
+.focus\:outline-none:focus { outline: none; }
+.focus\:ring-fuchsia-200:focus { --tw-ring-color: var(--border-2, rgba(0, 229, 255, 0.30)); }
+.focus\:ring-2:focus { box-shadow: 0 0 0 2px var(--tw-ring-color, var(--accent-strong, #00e5ff)); }

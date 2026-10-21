@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="760"
+   height="170"
+   viewBox="0 0 760 170"
+   role="img"
+   aria-label="EduShield — DeepSeek-native agent framework"
+   version="1.1"
+   id="svg16"
+   sodipodi:docname="logo.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview16"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="3.2289474"
+     inkscape:cx="380"
+     inkscape:cy="85.012225"
+     inkscape:window-width="2560"
+     inkscape:window-height="1566"
+     inkscape:window-x="-11"
+     inkscape:window-y="-11"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg16">
+    <inkscape:page
+       x="0"
+       y="0"
+       width="760"
+       height="170"
+       id="page2"
+       margin="0"
+       bleed="0" />
+  </sodipodi:namedview>
+  <title
+     id="title1">EduShield</title>
+  <defs
+     id="defs12">
+    <linearGradient
+       id="linearGradient59"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#aabcfc;stop-opacity:1;"
+         offset="0"
+         id="stop60" />
+      <stop
+         style="stop-color:#5db4bf;stop-opacity:0.63761467;"
+         offset="1"
+         id="stop61" />
+    </linearGradient>
+    <linearGradient
+       id="swatch35"
+       inkscape:swatch="solid">
+      <stop
+         style="stop-color:#000000;stop-opacity:1;"
+         offset="0"
+         id="stop35" />
+    </linearGradient>
+    <!-- Signature cyan → violet → fuchsia gradient used across the TUI wordmark
+         and the brand mark. Renders well on both GitHub dark and light bg. -->
+    <linearGradient
+       id="rx-grad-mark"
+       x1="0"
+       y1="0"
+       x2="1"
+       y2="1">
+      <stop
+         offset="0%"
+         stop-color="#5eead4"
+         id="stop9" />
+      <stop
+         offset="50%"
+         stop-color="#93c5fd"
+         id="stop10" />
+      <stop
+         offset="100%"
+         stop-color="#c4b5fd"
+         id="stop11" />
+    </linearGradient>
+    <filter
+       id="glow"
+       x="-0.097281821"
+       y="-0.097281821"
+       width="1.1945636"
+       height="1.1945636">
+      <feGaussianBlur
+         stdDeviation="3"
+         result="blur"
+         id="feGaussianBlur11" />
+      <feMerge
+         id="feMerge12">
+        <feMergeNode
+           in="blur"
+           id="feMergeNode11" />
+        <feMergeNode
+           in="SourceGraphic"
+           id="feMergeNode12" />
+      </feMerge>
+    </filter>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient59"
+       id="linearGradient61"
+       x1="159.41969"
+       y1="85.349899"
+       x2="676.73218"
+       y2="85.349899"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#rx-grad-mark"
+       id="linearGradient2"
+       x1="-47.749928"
+       y1="-47.749928"
+       x2="47.749928"
+       y2="47.749928"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#rx-grad-mark"
+       id="linearGradient3"
+       x1="-26.99996"
+       y1="-26.99996"
+       x2="26.99996"
+       y2="26.99996"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
+  <!-- ◈ brand mark: concentric diamonds. Outer stroke pulses,
+       inner fill breathes, whole group rotates slowly. The rotation
+       is subtle (12s / full turn) so it feels like a heartbeat, not a
+       spinner. -->
+  <g
+     transform="translate(90,85)"
+     filter="url(#glow)"
+     id="g15"
+     style="fill:none">
+    <g
+       id="g14"
+       style="fill:none">
+      <animateTransform
+         attributeName="transform"
+         type="rotate"
+         from="0"
+         to="360"
+         dur="18s"
+         repeatCount="indefinite" />
+      <!-- Outer hollow diamond -->
+      <path
+         d="M 0,-46 46,0 0,46 -46,0 Z"
+         fill="none"
+         stroke="url(#rx-grad-mark)"
+         stroke-width="3.5"
+         stroke-linejoin="round"
+         id="path12"
+         style="fill:none;stroke:url(#linearGradient2)">
+        <animate
+           attributeName="stroke-width"
+           values="3.5;5.5;3.5"
+           dur="2.4s"
+           repeatCount="indefinite" />
+      </path>
+      <!-- Middle hollow diamond -->
+      <path
+         d="M 0,-26 26,0 0,26 -26,0 Z"
+         fill="none"
+         stroke="url(#rx-grad-mark)"
+         stroke-width="2"
+         stroke-linejoin="round"
+         opacity="0.7"
+         id="path13"
+         style="fill:none;stroke:url(#linearGradient3)">
+        <animate
+           attributeName="opacity"
+           values="0.4;0.9;0.4"
+           dur="2.4s"
+           begin="0.8s"
+           repeatCount="indefinite" />
+      </path>
+      <!-- Inner solid diamond -->
+      <path
+         d="M 0,-11 11,0 0,11 -11,0 Z"
+         fill="url(#rx-grad-mark)"
+         id="path14"
+         style="fill:none">
+        <animate
+           attributeName="opacity"
+           values="0.75;1;0.75"
+           dur="2.4s"
+           repeatCount="indefinite" />
+      </path>
+    </g>
+  </g>
+  <!-- REASONIX wordmark with shifting gradient. The x1 offset animates
+       so the gradient crawls left-to-right across the letters — a
+       slow rainbow sweep that gives the logo life without being noisy. -->
+  <!-- Tagline sits just below the wordmark. Slate-500 reads well on
+       both GitHub dark and light themes (~4.5:1 contrast either way). -->
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:96px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;writing-mode:lr-tb;direction:ltr;fill:url(#linearGradient61);fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:439.635;stroke-dasharray:none;stroke-opacity:1;paint-order:fill markers stroke"
+     x="150.51344"
+     y="121.09209"
+     id="text16"><tspan
+       sodipodi:role="line"
+       id="tspan16"
+       x="150.51344"
+       y="121.09209"
+       style="fill:url(#linearGradient61);fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:439.635;stroke-dasharray:none;stroke-opacity:1">EduShield</tspan></text>
+</svg>

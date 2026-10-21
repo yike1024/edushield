@@ -1,0 +1,514 @@
+/*
+ * Edushield Design System — additive layer.
+ *
+ * This file imports after styles.css and provides:
+ *  - Semantic utility classes aligned with DESIGN.md
+ *  - Design-system tokens that reference the theme token set instead of
+ *    hard-coded colors (single source of color = palette layer)
+ *  - Improved focus-visible defaults for common interactive elements
+ *  - Breathing hover/ambient motion for every button/control
+ *  - prefers-reduced-motion guardrails
+ *  - Welcome empty-state polish
+ *
+ * It intentionally does NOT redefine existing component tokens so that
+ * the extensive CSS-contract tests in src/__tests__ keep passing.
+ */
+
+/* ── focus-visible guardrails ───────────────────────────────────────────── */
+button:focus-visible,
+a:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring, 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent));
+}
+
+/* Don't override elements that already define their own focus-visible ring. */
+.modal-close-button:focus-visible,
+.sidebar-resizer:focus-visible::after,
+.workspace-panel-resizer:focus-visible,
+.transcript__jump-bottom:focus-visible,
+.jump-item:focus-visible .jump-dot,
+.msg-edit__btn:focus-visible:not(:disabled),
+.msg-edit__btn--primary:focus-visible:not(:disabled),
+.msg-meta__btn:focus-visible:not(:disabled),
+.msg-meta .copybtn:focus-visible,
+.rewind__btn:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+/* ── screen-reader utilities ────────────────────────────────────────────── */
+.ds-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ds-sr-only-focusable:not(:focus):not(:focus-within) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── motion utilities ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Welcome empty-state enhancements ───────────────────────────────────── */
+.welcome {
+  container-type: inline-size;
+}
+
+.welcome--brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 24px;
+}
+
+.welcome__brand-logo {
+  height: 28px;
+  opacity: 0.95;
+  transition: opacity 0.18s ease;
+}
+
+.welcome__brand-logo:hover {
+  opacity: 1;
+}
+
+.welcome__title {
+  margin: 0;
+  font-size: calc(22px * var(--font-scale, 1));
+  font-weight: 500;
+  letter-spacing: -0.3px;
+  color: var(--fg);
+}
+
+.welcome__tag {
+  color: var(--fg-dim);
+  font-size: calc(14px * var(--font-scale, 1));
+  line-height: 1.5;
+}
+
+.welcome__hints {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px 18px;
+  color: var(--fg-faint);
+  font-size: calc(13px * var(--font-scale, 1));
+}
+
+.welcome__hints kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-elev);
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  line-height: 1.3;
+}
+
+.welcome__examples {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+  max-width: min(720px, 90cqw);
+}
+
+.welcome__ex {
+  display: inline-flex;
+  align-items: center;
+  text-align: left;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elev);
+  color: var(--fg-dim);
+  font-size: calc(13px * var(--font-scale, 1));
+  line-height: 1.4;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+}
+
+.welcome__ex:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--fg);
+}
+
+.welcome__ex:active {
+  transform: translateY(1px);
+}
+
+.welcome__ex:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+/* ── Scenario entries (phishing email triage) ──────────────────────────── */
+.welcome__scenarios {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+  max-width: min(720px, 90cqw);
+}
+
+.welcome__scenario {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  padding: 10px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--fg);
+  font-size: calc(13px * var(--font-scale, 1));
+  line-height: 1.4;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+}
+
+.welcome__scenario:hover {
+  border-color: var(--accent-strong);
+  color: var(--fg);
+}
+
+.welcome__scenario:active {
+  transform: translateY(1px);
+}
+
+.welcome__scenario:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.welcome__scenario-title {
+  font-weight: 600;
+}
+
+.welcome__scenario-hint {
+  color: var(--fg-dim);
+  font-size: 0.92em;
+}
+
+/* ── Creation welcome variant ───────────────────────────────────────────── */
+.welcome--creation {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.welcome-creation__headline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  font-size: calc(26px * var(--font-scale, 1));
+  font-weight: 500;
+  letter-spacing: -0.4px;
+  line-height: 1.25;
+  color: var(--fg);
+}
+
+.welcome-creation__headline span:last-child {
+  color: var(--fg-dim);
+  font-size: 0.72em;
+  font-weight: 400;
+}
+
+.welcome-creation__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.welcome-creation__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  color: var(--fg-dim);
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+}
+
+.welcome-creation__card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--fg);
+}
+
+.welcome-creation__card:active {
+  transform: translateY(1px);
+}
+
+.welcome-creation__card:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.welcome-creation__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-elev-2);
+  color: var(--accent);
+  font-size: 14px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.welcome-creation__card strong {
+  color: var(--fg);
+  font-size: calc(15px * var(--font-scale, 1));
+  font-weight: 600;
+}
+
+.welcome-creation__card span:last-child {
+  font-size: calc(13px * var(--font-scale, 1));
+  line-height: 1.45;
+}
+
+/* ── design-system tokens reference (mirrors DESIGN.md) ─────────────────── */
+/* Every --ds-* value is an alias into the theme token set, so the design
+ * system always follows the active palette + mode without duplicating colors. */
+:root {
+  --ds-primary: var(--accent);
+  --ds-primary-soft: var(--accent-strong);
+  --ds-primary-deep: var(--accent);
+  --ds-on-primary: var(--accent-fg);
+  --ds-ink: var(--fg);
+  --ds-ink-strong: var(--fg);
+  --ds-body: var(--fg-dim);
+  --ds-mute: var(--fg-faint);
+  --ds-hairline: var(--border);
+  --ds-hairline-soft: var(--border-soft);
+  --ds-canvas: var(--bg);
+  --ds-canvas-soft: var(--bg-soft);
+  --ds-canvas-elev: var(--bg-elev);
+  --ds-canvas-elev-2: var(--bg-elev-2);
+  --ds-rounded-sm: 6px;
+  --ds-rounded-md: 8px;
+  --ds-rounded-lg: 12px;
+  --ds-rounded-pill: 9999px;
+  --ds-spacing-xs: 4px;
+  --ds-spacing-sm: 8px;
+  --ds-spacing-md: 12px;
+  --ds-spacing-lg: 16px;
+  --ds-spacing-xl: 20px;
+  --ds-spacing-2xl: 24px;
+  --ds-spacing-3xl: 32px;
+}
+
+/* ── touch target utilities ─────────────────────────────────────────────── */
+.ds-touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.ds-touch-target-sm {
+  min-width: 36px;
+  min-height: 36px;
+}
+
+/* ── Liquid buttons: soft accent glow (no blur filter) + gentle morph ───── */
+/* The previous glow used filter: blur(18px) which is expensive and was
+ * removed; a large, low-opacity radial gradient gives the same halo without
+ * a filter, keeping paint cheap and the look clean on every device. */
+.liquid-button,
+.composer__btn--send,
+.msg-edit__btn--primary,
+.bot-detail__primary {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.liquid-button::before,
+.composer__btn--send::before,
+.msg-edit__btn--primary::before,
+.bot-detail__primary::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background:
+    radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 45%),
+    radial-gradient(circle at 70% 70%, color-mix(in srgb, var(--accent-soft) 70%, transparent), transparent 45%);
+  opacity: 0;
+  transform: translate3d(0, 0, 0) scale(0.85);
+  transition: opacity 0.35s ease;
+  animation: liquid-shift 7s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.liquid-button:hover::before,
+.composer__btn--send:hover::before,
+.msg-edit__btn--primary:hover::before,
+.bot-detail__primary:hover::before {
+  opacity: 1;
+}
+
+.liquid-button::after,
+.composer__btn--send::after,
+.msg-edit__btn--primary::after,
+.bot-detail__primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.liquid-button:hover::after,
+.composer__btn--send:hover::after,
+.msg-edit__btn--primary:hover::after,
+.bot-detail__primary:hover::after {
+  opacity: 1;
+}
+
+.liquid-button > *,
+.composer__btn--send > *,
+.msg-edit__btn--primary > *,
+.bot-detail__primary > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes liquid-shift {
+  0%, 100% {
+    transform: translate3d(-6%, -4%, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(4%, 5%, 0) scale(1.06);
+  }
+  66% {
+    transform: translate3d(5%, -5%, 0) scale(0.97);
+  }
+}
+
+/* ── Air breathing: low-amplitude ambient motion ────────────────────────── */
+/* Every button/control gets a subtle breathing effect (opacity + slight
+ * scale). Amplitude is deliberately tiny so text stays crisp and layout is
+ * untouched. Inner spinners/dots (which run their own keyframes) are not
+ * affected because they live on child elements. */
+@keyframes breathe-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.985;
+  }
+}
+
+@keyframes breathe-soft {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.985;
+    transform: scale(1.002);
+  }
+}
+
+.app-chrome,
+.composer-card,
+.welcome,
+.sidebar,
+.workspace-panel,
+.context-panel,
+.settings-panel,
+.modal__content,
+.command-palette {
+  animation: breathe-glow 8s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.liquid-button,
+.composer__btn--send,
+.msg-edit__btn--primary,
+.bot-detail__primary {
+  animation: breathe-soft 7s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Breathing for ALL interactive buttons/controls — subtle, cheap, and paused
+ * while hovered/active so targets stay responsive and text stays readable. */
+button,
+[role="button"],
+.ds-touch-target,
+.welcome__ex,
+.welcome-creation__card {
+  animation: breathe-soft 8s ease-in-out infinite;
+  will-change: opacity;
+}
+
+/* Keep interactive targets usable: pause ambient motion on hover/active. */
+button:hover,
+button:active,
+[role="button"]:hover,
+[role="button"]:active,
+.ds-touch-target:hover,
+.ds-touch-target:active,
+.welcome__ex:hover,
+.welcome__ex:active,
+.welcome-creation__card:hover,
+.welcome-creation__card:active,
+.liquid-button:hover,
+.liquid-button:active,
+.composer__btn--send:hover,
+.composer__btn--send:active,
+.msg-edit__btn--primary:hover,
+.msg-edit__btn--primary:active,
+.bot-detail__primary:hover,
+.bot-detail__primary:active {
+  animation-play-state: paused;
+}

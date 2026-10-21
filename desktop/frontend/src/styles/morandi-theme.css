@@ -1,0 +1,22 @@
+/*
+ * Morandi — soft, calm visual style.
+ *
+ * This style carries NO color values of its own. All colors come from the
+ * palette color core layer (console-theme.css, loaded after this file) via the
+ * shared semantic tokens (--bg / --surface / --accent / …). Switching between
+ * the 8 visual styles therefore never changes the active palette.
+ *
+ * Everything defined here is a non-color difference only: the soft corner
+ * radii that give this style its airy, friendly feel.
+ */
+
+:root[data-theme-style="morandi"] {
+  /* Soft, friendly corner radii */
+  --r-s: 5px;
+  --r: 8px;
+  --r-l: 11px;
+  --radius: 8px;
+  --button-radius: 7px;
+  --list-row-radius: 8px;
+  --tree-row-radius: 7px;
+}

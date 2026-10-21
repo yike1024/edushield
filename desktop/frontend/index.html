@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-theme-style="morandi" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- 禁止浏览器/扩展翻译改写 DOM：翻译会包裹文本节点（<font> 等），
+         与 React 19 虚拟 DOM 失同步，在删除节点时抛出
+         "removeChild: The node to be removed is not a child of this node"，
+         导致 AisocDashboard/TaskList 崩溃。translate=no + notranslate + meta 三重防护。 -->
+    <meta name="google" content="notranslate" />
+    <title>EduShield</title>
+  </head>
+  <body class="notranslate">
+    <div id="root" class="notranslate"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organic Motion Preview — EduShield Desktop</title>
+  <style>
+    :root {
+      --stage: #1f1e1c;
+      --surface: #2a2926;
+      --surface-2: #32302d;
+      --surface-3: #252422;
+      --bg: #252422;
+      --bg-soft: #2b2a27;
+      --bg-elev: #32302d;
+      --bg-elev-2: #3a3835;
+      --border: rgba(255, 255, 255, 0.1);
+      --border-2: rgba(255, 255, 255, 0.18);
+      --text: #e8e4df;
+      --text-2: #a9a59e;
+      --text-3: #75726d;
+      --accent: #8fa3b0;
+      --accent-strong: #a8b9c2;
+      --accent-soft: rgba(143, 163, 176, 0.16);
+      --ok: #7d9a82;
+      --warn: #c9a36e;
+      --err: #c07e78;
+
+      --ease-breath: cubic-bezier(0.37, 0, 0.63, 1);
+      --ease-flow: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+
+      --radius: 8px;
+      --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+      --shadow-2: 0 14px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--stage);
+      color: var(--text);
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Ambient background pulse */
+    .app {
+      flex: 1;
+      display: flex;
+      position: relative;
+      animation: ambientShift 18s var(--ease-breath) infinite alternate;
+    }
+
+    @keyframes ambientShift {
+      0% { background: radial-gradient(circle at 20% 20%, rgba(143, 163, 176, 0.04), transparent 50%), var(--stage); }
+      50% { background: radial-gradient(circle at 80% 80%, rgba(125, 154, 130, 0.03), transparent 50%), var(--stage); }
+      100% { background: radial-gradient(circle at 50% 50%, rgba(192, 126, 120, 0.03), transparent 50%), var(--stage); }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      animation: slideIn 0.6s var(--ease-flow) backwards;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      font-weight: 600;
+      color: var(--text);
+      animation: gentleFloat 6s var(--ease-breath) infinite;
+    }
+
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: linear-gradient(120deg, var(--accent), var(--accent-strong));
+      box-shadow: 0 0 12px rgba(143, 163, 176, 0.35);
+      animation: pulseGlow 3s var(--ease-breath) infinite;
+    }
+
+    .nav-item {
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      color: var(--text-2);
+      cursor: pointer;
+      transition: background 0.25s var(--ease-flow), color 0.25s var(--ease-flow), transform 0.25s var(--ease-spring);
+      border: 1px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: #363431;
+      color: var(--text);
+      transform: translateX(4px);
+    }
+
+    .nav-item.active {
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      border-color: rgba(143, 163, 176, 0.24);
+    }
+
+    /* Main area */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 32px;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      animation: fadeInDown 0.55s var(--ease-flow) backwards;
+    }
+
+    .title {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--text-3);
+      margin-top: 4px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 9px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-elev-2);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-flow), border-color 0.25s var(--ease-flow);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: var(--shadow-2);
+      border-color: var(--border-2);
+    }
+
+    .btn:active {
+      transform: translateY(0) scale(0.98);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #11100e;
+      border-color: transparent;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-strong);
+    }
+
+    /* Chat cards */
+    .chat {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: fadeInUp 0.6s var(--ease-flow) 0.1s backwards;
+    }
+
+    .message {
+      max-width: 76%;
+      padding: 14px 18px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-elev);
+      color: var(--text);
+      box-shadow: var(--shadow-1);
+      transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-flow);
+      animation: messageIn 0.55s var(--ease-flow) backwards;
+    }
+
+    .message:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-2);
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--surface-2);
+      border-color: rgba(143, 163, 176, 0.2);
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: var(--bg-elev);
+    }
+
+    .message:nth-child(1) { animation-delay: 0.05s; }
+    .message:nth-child(2) { animation-delay: 0.12s; }
+    .message:nth-child(3) { animation-delay: 0.19s; }
+    .message:nth-child(4) { animation-delay: 0.26s; }
+
+    /* Processing card with shimmer */
+    .process-card {
+      padding: 16px 18px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-elev);
+      position: relative;
+      overflow: hidden;
+      animation: cardIn 0.6s var(--ease-flow) backwards;
+    }
+
+    .process-card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, transparent 30%, rgba(143, 163, 176, 0.08) 50%, transparent 70%);
+      transform: translateX(-100%);
+      animation: shimmer 2.4s var(--ease-out-expo) infinite;
+      pointer-events: none;
+    }
+
+    .process-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .process-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--warn);
+      animation: pulseGlow 2s var(--ease-breath) infinite;
+    }
+
+    .process-title { font-weight: 500; }
+
+    .process-meta {
+      font-size: 12px;
+      color: var(--text-3);
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Composer */
+    .composer {
+      margin-top: auto;
+      padding: 14px 16px;
+      border-radius: var(--r-l);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      animation: fadeInUp 0.65s var(--ease-flow) 0.3s backwards;
+      transition: border-color 0.25s var(--ease-flow), box-shadow 0.25s var(--ease-flow), transform 0.25s var(--ease-flow);
+    }
+
+    .composer:focus-within {
+      border-color: rgba(143, 163, 176, 0.35);
+      box-shadow: 0 0 0 3px rgba(143, 163, 176, 0.12), 0 12px 34px rgba(0, 0, 0, 0.35);
+      transform: translateY(-2px);
+    }
+
+    .composer-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 24px;
+      resize: none;
+    }
+
+    .composer-input::placeholder { color: var(--text-3); }
+
+    .send-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: #11100e;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform 0.25s var(--ease-spring), background 0.25s var(--ease-flow), box-shadow 0.25s var(--ease-flow);
+    }
+
+    .send-btn:hover {
+      transform: scale(1.08);
+      background: var(--accent-strong);
+      box-shadow: 0 0 16px rgba(143, 163, 176, 0.3);
+    }
+
+    /* Typing indicator */
+    .typing {
+      display: flex;
+      gap: 5px;
+      padding: 16px 18px;
+      align-self: flex-start;
+      animation: fadeInUp 0.4s var(--ease-flow) backwards;
+    }
+
+    .typing-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-3);
+      animation: typingWave 1.4s var(--ease-breath) infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.16s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.32s; }
+
+    /* Keyframes */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.65; transform: scale(1.15); }
+    }
+
+    @keyframes gentleFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-16px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes messageIn {
+      from { opacity: 0; transform: translateY(14px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    @keyframes typingWave {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+      30% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <span>EduShield</span>
+      </div>
+      <div class="nav-item active">新会话</div>
+      <div class="nav-item">历史记录</div>
+      <div class="nav-item">工作区</div>
+      <div class="nav-item">设置</div>
+      <div class="nav-item">帮助</div>
+    </aside>
+
+    <main class="main">
+      <header class="header">
+        <div>
+          <div class="title">动效预览</div>
+          <div class="subtitle">呼吸感 · 流动性 · 去 AI 味</div>
+        </div>
+        <div class="actions">
+          <button class="btn">次要操作</button>
+          <button class="btn btn-primary">主要操作</button>
+        </div>
+      </header>
+
+      <section class="chat">
+        <div class="message user">这个界面能不能再柔和一点？</div>
+        <div class="message assistant">已经调整过了。现在加入了呼吸节奏、弹性 hover、微浮起和流光扫过效果，整体更自然。</div>
+        <div class="message user">启动服务看一下？</div>
+        <div class="message assistant">如果 dev server 暂时起不来，可以先看这个静态预览页确认动效方向。</div>
+
+        <div class="process-card">
+          <div class="process-header">
+            <div class="process-dot"></div>
+            <div class="process-title">正在分析项目结构…</div>
+          </div>
+          <div class="process-meta">处理中 · 12%</div>
+        </div>
+
+        <div class="typing">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </section>
+
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="输入问题，按 Enter 发送…"></textarea>
+        <button class="send-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
