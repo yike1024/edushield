@@ -1,0 +1,115 @@
+{
+  "playbook_id": "tir_playbook_106eecfd",
+  "alert_id": "tir_alert_97e88fa3",
+  "task_id": "ingest:1111.pcap#1",
+  "level": "medium",
+  "objective": "对 MEDIUM 级威胁「疑似SSH弱口令爆破」执行应急处置",
+  "mode": "suggestion",
+  "steps": [
+    {
+      "seq": 1,
+      "phase": "遏制(Containment)",
+      "action": "在防火墙或入侵防御系统上临时封禁源IP 14.0.0.120，阻断其后续访问请求。",
+      "expected_command": "iptables -A INPUT -s 14.0.0.120 -j DROP",
+      "risk_level": "medium",
+      "requires_approval": true,
+      "rationale": "封禁源IP可立即阻断攻击源，防止进一步爆破尝试，但需人工确认以避免误封正常用户。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 2,
+      "phase": "遏制(Containment)",
+      "action": "在目标服务10.0.0.112:8080上启用或调整速率限制，限制同一IP的认证请求频率。",
+      "expected_command": "配置nginx限流：limit_req_zone $binary_remote_addr zone=auth_limit:10m rate=5r/m; 并在location中应用",
+      "risk_level": "medium",
+      "requires_approval": false,
+      "rationale": "速率限制可降低爆破速度，即使封禁失败也能减缓攻击，且对正常用户影响较小。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 3,
+      "phase": "调查(Investigation)",
+      "action": "检查目标服务10.0.0.112:8080的访问日志和认证日志，筛选源IP 14.0.0.120的请求记录，确认攻击时间、频率和是否出现成功登录。",
+      "expected_command": "grep '14.0.0.120' /var/log/nginx/access.log | grep '401' | tail -100",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "日志分析是确认攻击真实性和影响范围的关键，可判断是否存在成功爆破或误报。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 4,
+      "phase": "调查(Investigation)",
+      "action": "检查源IP 14.0.0.120的威胁情报信息，确认其是否已知恶意IP，并分析其历史行为。",
+      "expected_command": "curl -s https://api.abuseipdb.com/api/v2/check?ipAddress=14.0.0.120",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "威胁情报可提供IP信誉，帮助判断攻击意图和关联攻击，提高处置准确性。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 5,
+      "phase": "调查(Investigation)",
+      "action": "检查目标服务是否存在其他异常登录或横向移动迹象，查看同一时间段内其他源IP的认证失败记录。",
+      "expected_command": "grep '401' /var/log/nginx/access.log | awk '{print $1}' | sort | uniq -c | sort -nr | head -20",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "确认是否仅为单一IP攻击，排除分布式爆破或内部失陷可能，评估整体风险。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 6,
+      "phase": "加固(Hardening)",
+      "action": "在目标服务上强制实施账户锁定策略，例如连续5次失败后锁定账户15分钟。",
+      "expected_command": "在应用配置中设置：max_attempts=5, lockout_time=900秒",
+      "risk_level": "medium",
+      "requires_approval": false,
+      "rationale": "账户锁定可有效阻止爆破，即使攻击者绕过IP限制也无法持续尝试。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 7,
+      "phase": "加固(Hardening)",
+      "action": "启用或加强多因素认证（MFA）机制，为所有用户账户添加二次验证。",
+      "expected_command": "配置TOTP或短信验证，例如在应用设置中启用MFA模块",
+      "risk_level": "medium",
+      "requires_approval": true,
+      "rationale": "MFA可显著提高账户安全性，即使密码泄露也无法登录，但部署可能影响用户体验，需审批。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 8,
+      "phase": "加固(Hardening)",
+      "action": "更新目标服务的认证模块，确保使用强密码策略，并定期更换默认凭据。",
+      "expected_command": "修改密码策略：最小长度12位，包含大小写字母、数字和特殊字符",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "强密码策略降低弱口令被爆破的风险，是基础安全加固措施。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 9,
+      "phase": "复盘(Lessons)",
+      "action": "按 复盘(Lessons) 阶段完成人工确认后的处置",
+      "expected_command": "",
+      "risk_level": "low",
+      "requires_approval": true,
+      "rationale": "阶段骨架兜底步骤",
+      "status": "pending",
+      "simulated_result": null
+    }
+  ],
+  "summary": "已按 medium 级威胁自动生成 9 步处置预案（suggestion 模式）",
+  "confidence": 0.6,
+  "mitre": [
+    "T1110"
+  ],
+  "created_at": "2026-08-27T17:16:22.031944Z"
+}

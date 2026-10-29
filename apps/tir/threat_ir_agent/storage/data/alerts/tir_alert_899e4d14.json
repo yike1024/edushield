@@ -1,0 +1,20 @@
+{
+  "alert_id": "tir_alert_899e4d14",
+  "event_ref": "tir_event_d3e52bcd",
+  "task_id": "ingest:AntSword2.pcap#parse_error",
+  "title": "PCAP文件解析失败",
+  "level": "low",
+  "attack_type": "parse_error",
+  "mitre_technique": null,
+  "confidence": 0.95,
+  "source_ip": null,
+  "target": "D:\\学习资料\\实验\\AntSword2.pcap",
+  "summary": "安全检测系统尝试解析PCAP文件时失败，原因是文件链路类型不支持（当前linktype=0，仅支持Ethernet）。",
+  "evidence": "事件描述：仅支持Ethernet(linktype=1)，当前linktype=0；目标文件为AntSword2.pcap，但未提供源IP和攻击类型。",
+  "recommended_action": "检查PCAP文件格式，使用正确的链路类型重新捕获或转换文件后再次分析。",
+  "reasoning": "该事件为解析错误，属于技术性故障，不涉及任何攻击行为。文件名为AntSword2.pcap可能暗示与AntSword（蚁剑）相关，但解析失败导致无法提取任何内容，因此无法确认攻击。根据分级标准，此类信息性事件应归为低风险。",
+  "verdict": "benign",
+  "status": "notified",
+  "created_at": "2026-08-27T17:18:38.833750Z",
+  "notified_at": "2026-08-27T17:18:38.834989Z"
+}

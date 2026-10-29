@@ -1,0 +1,80 @@
+{
+  "playbook_id": "tir_playbook_1eb37d3b",
+  "alert_id": "tir_alert_9831cbc8",
+  "task_id": "ingest:AntSword2.pcap#parse_error",
+  "level": "low",
+  "objective": "对 LOW 级威胁「PCAP文件解析失败」执行应急处置",
+  "mode": "suggestion",
+  "steps": [
+    {
+      "seq": 1,
+      "phase": "观察(Monitor)",
+      "action": "确认告警信息，检查目标文件AntSword2.pcap的格式和来源，验证是否因文件损坏或链路类型不支持导致解析失败。",
+      "expected_command": "file AntSword2.pcap; tcpdump -r AntSword2.pcap -e | head -n 1",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "该告警为解析错误，无源IP和攻击特征，需先确认文件状态，排除误报或潜在恶意文件伪装。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 2,
+      "phase": "观察(Monitor)",
+      "action": "检查安全检测系统日志，确认是否存在其他相关告警或异常事件，评估该文件是否可能包含恶意流量但被解析失败掩盖。",
+      "expected_command": "grep -i 'AntSword2' /var/log/security/*.log",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "虽然当前告警为低风险，但文件名暗示可能涉及AntSword工具，需排查关联事件，避免遗漏潜在威胁。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 3,
+      "phase": "加固建议(Hardening)",
+      "action": "更新或调整PCAP解析模块，支持更多链路类型（如linktype=0），或增加文件格式预检机制，避免解析失败。",
+      "expected_command": "sudo apt-get update && sudo apt-get install tcpdump wireshark-common",
+      "risk_level": "medium",
+      "requires_approval": true,
+      "rationale": "提升解析能力可减少此类告警，但涉及系统更新，需人工确认以避免影响现有服务。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 4,
+      "phase": "加固建议(Hardening)",
+      "action": "对上传或待分析的PCAP文件增加格式校验和来源审查流程，确保文件完整且符合Ethernet链路类型要求。",
+      "expected_command": "python3 -c \"import pcap; pcap.pcap('AntSword2.pcap')\"",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "通过预检可提前发现格式问题，减少解析错误告警，同时防止恶意文件绕过检测。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 5,
+      "phase": "复盘(Lessons)",
+      "action": "记录本次事件处理过程，分析告警误报原因，优化告警分级规则，将纯解析错误类事件降为信息级或自动忽略。",
+      "expected_command": "",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "复盘有助于完善安全运营流程，减少低价值告警干扰，提高响应效率。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 6,
+      "phase": "复盘(Lessons)",
+      "action": "检查AntSword相关检测规则，确保即使PCAP解析失败，也能通过其他方式（如文件名、元数据）触发关联告警。",
+      "expected_command": "grep -r 'AntSword' /etc/security/rules/",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "文件名暗示可能涉及恶意工具，需确保检测体系能覆盖此类场景，避免因解析失败而漏报。",
+      "status": "pending",
+      "simulated_result": null
+    }
+  ],
+  "summary": "已按 low 级威胁自动生成 6 步处置预案（suggestion 模式）",
+  "confidence": 0.9,
+  "mitre": [],
+  "created_at": "2026-08-27T17:17:39.869541Z"
+}

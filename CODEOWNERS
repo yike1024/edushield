@@ -1,0 +1,29 @@
+# CODEOWNERS —— 每个模块只有一个负责人，跨模块文件需要多方 review
+# 语法：<路径模式> <@负责人...>
+# 把下面的账号换成你们真实的 GitHub / GitLab 账号，然后删掉最后一段说明。
+
+# 默认：配置、脚本、文档属于"整仓"，改动需要至少两个域负责人参与
+/config/            @linyuxuan @wangwei @linchen @chenyiming
+/scripts/           @linyuxuan
+/docs/              @linyuxuan @wangwei @linchen @chenyiming
+/packages/          @linyuxuan
+/CODEOWNERS         @linyuxuan
+/README.md          @linyuxuan
+
+# ---- 各模块：成员只管自己的目录 ----
+/apps/brain/        @linyuxuan
+/apps/frontend/     @linyuxuan
+/apps/pentest/      @wangwei
+/apps/intel/        @wangwei
+/apps/logaudit/     @linchen
+/apps/tir/          @chenyiming
+
+# ---- 唯一的"真正共享"代码：协议定义 ----
+# 改这里会影响所有域，必须所有负责人 review
+/apps/brain/protocol/               @linyuxuan @wangwei @linchen @chenyiming
+/docs/HTTP-CONTRACT.md              @linyuxuan @wangwei @linchen @chenyiming
+/packages/contracts/                @linyuxuan @wangwei @linchen @chenyiming
+
+# 说明：本文件里的账号是占位（沿用模块 README 里的交付人名字）。
+# 团队实际用 GitHub 就填 GitHub 用户名，用 GitLab 则把文件放到 .gitlab/CODEOWNERS
+# 并把关键字改成 [部门] 审批规则；两者语法不同，别混用。

@@ -1,202 +1,143 @@
-<p align="center">
-  <img src="docs/logo.svg" alt="EduShield" width="640"/>
-</p>
+# EduShield 校园智盾 · 统一仓库
 
-<p align="center">
-  <strong>English</strong>
-  &nbsp;·&nbsp;
-  <a href="./README.zh-CN.md">简体中文</a>
-  &nbsp;·&nbsp;
-  <a href="./docs/GUIDE.md">Guide</a>
-  &nbsp;·&nbsp;
-  <a href="./docs/SPEC.md">Spec</a>
-  &nbsp;·&nbsp;
-  <a href="https://esengine.github.io/DeepSeek-Reasonix/">Website</a>
-  &nbsp;·&nbsp;
-  <strong><a href="https://discord.gg/XF78rEME2D">Discord</a></strong>
-</p>
+六个成员各写一个模块，**模块之间只通过 HTTP 通信，代码互不 import**。本仓把它们放进
+一个文件夹里统一管理：一套端口表、一份启动编排、一份环境变量，但每个模块仍是独立进程、
+独立技术栈、独立负责人。任何模块都可以单独跑，也可以随时抽出去独立部署。
 
-> [!IMPORTANT]
-> **EduShield 1.0 is a ground-up rewrite in Go** — this branch (`main-v2`) is the new default and where development happens now.
-> The earlier `0.x` TypeScript releases are **legacy**, living on the [`v1`](https://github.com/esengine/DeepSeek-Reasonix/tree/v1) branch (maintenance only).
-> See the **[migration guide](./docs/MIGRATING.md)**. `npm i -g reasonix` stays the install command — `1.0.0`+ delivers the Go binary, `0.x` is the legacy TS build.
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/reasonix"><img src="https://img.shields.io/npm/v/reasonix.svg?style=flat-square&color=cb3837&labelColor=161b22&logo=npm&logoColor=white" alt="npm version"/></a>
-  <a href="https://github.com/esengine/DeepSeek-Reasonix/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/esengine/DeepSeek-Reasonix/ci.yml?style=flat-square&label=ci&labelColor=161b22&logo=githubactions&logoColor=white" alt="CI"/></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/reasonix.svg?style=flat-square&color=8b949e&labelColor=161b22" alt="license"/></a>
-  <a href="https://www.npmjs.com/package/reasonix"><img src="https://img.shields.io/npm/dm/reasonix.svg?style=flat-square&color=3fb950&labelColor=161b22&label=downloads" alt="downloads"/></a>
-  <a href="https://github.com/esengine/DeepSeek-Reasonix/stargazers"><img src="https://img.shields.io/github/stars/esengine/DeepSeek-Reasonix.svg?style=flat-square&color=dbab09&labelColor=161b22&logo=github&logoColor=white" alt="GitHub stars"/></a>
-  <a href="https://atomgit.com/esengine/DeepSeek-Reasonix"><img src="https://atomgit.com/esengine/DeepSeek-Reasonix/star/badge.svg" alt="AtomGit stars"/></a>
-  <a href="https://github.com/esengine/DeepSeek-Reasonix/graphs/contributors"><img src="https://img.shields.io/github/contributors/esengine/DeepSeek-Reasonix.svg?style=flat-square&color=bc8cff&labelColor=161b22&logo=github&logoColor=white" alt="contributors"/></a>
-  <a href="https://github.com/esengine/DeepSeek-Reasonix/discussions"><img src="https://img.shields.io/github/discussions/esengine/DeepSeek-Reasonix.svg?style=flat-square&color=58a6ff&labelColor=161b22&logo=github&logoColor=white" alt="Discussions"/></a>
-  <a href="https://discord.gg/XF78rEME2D"><img src="https://img.shields.io/badge/discord-join-5865F2.svg?style=flat-square&labelColor=161b22&logo=discord&logoColor=white" alt="Discord"/></a>
-</p>
-
-<br/>
-
-<h3 align="center">A DeepSeek-native AI coding agent for your terminal.</h3>
-<p align="center">A config- and plugin-driven harness — a single static Go binary, tuned around DeepSeek's prefix cache so token costs stay low across long sessions.</p>
-
-<br/>
-
-> [!IMPORTANT]
-> **Community · 加入社区** — bilingual Discord for setup help (`#help` / `#求助`), workflow showcases, and feature ideas. → **<https://discord.gg/XF78rEME2D>**
-
-<br/>
-
-## Features
-
-- **Config-driven.** Providers, the agent, enabled tools, and plugins are all
-  declared in `reasonix.toml`. No hardcoded models.
-- **Multi-model & composable.** DeepSeek ships as a preset; any
-  OpenAI-compatible endpoint is a config entry, not new code. Optionally run
-  two models together (executor + planner) in separate, cache-stable sessions.
-- **Plugin-driven.** External tools run as subprocesses over stdio JSON-RPC
-  (MCP-compatible). Built-in tools self-register at compile time.
-- **Cache-aware context maintenance.** Startup injects a small stable environment
-  summary, stale tool output is snipped/pruned before summary compaction, and the
-  built-in tool schema contract is documented for regression review.
-- **Zero-friction distribution.** `CGO_ENABLED=0` single binary; cross-compile
-  to six targets with one command. The only dependency is a TOML parser.
-
-## Install
-
-```sh
-npm i -g reasonix                  # any OS; pulls the prebuilt native binary
-brew install esengine/reasonix/reasonix   # macOS
+```
+                       浏览器
+                         │
+             ┌───────────┴────────────┐
+             │  frontend :3000        │  静态 dist + 反向代理
+             │  (dev: vite :5173)     │  /aisoc-*/api → 6657
+             └───────────┬────────────┘
+                         │ HTTP / SSE
+             ┌───────────┴────────────┐
+             │  brain :6657           │  编排 / 判定 / 报告 / SSE
+             │  FastAPI + SQLite      │  registry 定位各部件
+             └──┬────────┬────────┬───┘
+                │        │        │        HTTP（Bearer / Cookie）
+     ┌──────────┴─┐ ┌────┴─────┐ ┌┴──────────────┐   ┌──────────────┐
+     │ pentest    │ │ logaudit │ │ intel         │   │ tir :8090    │
+     │ adapter    │ │ serve    │ │ adapter :8789 │   │ 威胁警报+应急 │
+     │ :8786      │ │ :8788    │ │   ↓           │   │ 响应子 Agent │
+     │   ↓        │ │(reasonix)│ │ serve :8089   │   └──────────────┘
+     │ serve :4523│ └──────────┘ │ (reasonix)    │
+     │(reasonix)  │              └───────────────┘
+     └────────────┘
 ```
 
-Prebuilt archives (`darwin|linux|windows × amd64|arm64`) and `SHA256SUMS` are on
-every [GitHub release](https://github.com/esengine/DeepSeek-Reasonix/releases).
+## 目录结构
 
-### Code signing
-
-Windows builds are code-signed with a free certificate provided by the
-[SignPath Foundation](https://signpath.org/), with signing through
-[SignPath.io](https://signpath.io/).
-
-### Build from source
-
-```sh
-make build      # -> bin/reasonix(.exe)
-make cross      # -> dist/ (darwin|linux|windows × amd64|arm64)
+```
+edushield-platform/
+├─ apps/                       ← 六个模块，各自一个子目录，成员只动自己的
+│  ├─ brain/                   AiSOC 大脑（FastAPI 6657，编排/判定/报告）
+│  ├─ frontend/                前端（Vite + React，静态代理 serve_frontend.py）
+│  ├─ pentest/                 渗透验证域（rix-agent 内核 + adapter）
+│  ├─ logaudit/                日志审计域（DeepSeek-Reasonix + logaudit 工具链）
+│  ├─ intel/                   情报收集域（rax-intel-agent）
+│  └─ tir/                     威胁警报 / 应急响应子 Agent（FastAPI 8090）
+├─ config/                     ← 跨模块的配置都在这里
+│  ├─ services.json            ★ 唯一事实来源：端口、启动命令、健康检查、依赖顺序
+│  ├─ env/                     ★ 环境变量模板（*.env.tmpl）→ 渲染出 *.env（不进 git）
+│  ├─ registry/                大脑的部件注册表模板（渲染后带真实 token）
+│  └─ reasonix/               三份 reasonix 配置的差异说明（真实文件在各自模块内）
+├─ scripts/                    生成配置 / 启停 / 巡检（Windows 与 Linux 各一套）
+├─ packages/contracts/         跨模块协议（TaskMessage / Finding / Report）的落地约定
+├─ docs/                       架构、HTTP 契约、端口表、加模块、迁移
+├─ logs/                       运行日志（gitignore）
+└─ .run/                       进程状态（gitignore）
 ```
 
-## Quick start
+## 端口表
 
-```sh
-reasonix setup                      # manage providers in the user config
-reasonix setup --local              # optional: manage ./reasonix.toml
-export DEEPSEEK_API_KEY=sk-...      # or let setup save it to EduShield home .env
-reasonix                            # then run /init to generate AGENTS.md (project memory)
-reasonix run "implement the TODOs in main.go"
-reasonix run --model deepseek-pro "add unit tests for this function"
-echo "explain this code" | reasonix run
+| 服务 id | 端口 | 组件 | 负责人 |
+|---|---|---|---|
+| `frontend` | 3000 | 静态 dist + 反向代理 | @linyuxuan |
+| `frontend-dev` | 5173 | vite dev server（可选，与 3000 二选一） | @linyuxuan |
+| `brain` | 6657 | 大脑 FastAPI（统一入口） | @linyuxuan |
+| `tir` | 8090 | 威胁警报 / 应急响应 | @chenyiming |
+| `pentest-adapter` | 8786 | 渗透域适配层（大脑只认这个端口） | @wangwei |
+| `pentest-serve` | 4523 | reasonix serve（渗透域推理引擎） | @wangwei |
+| `logaudit-serve` | 8788 | reasonix serve（日志审计域，serve 直连） | @linchen |
+| `intel-adapter` | 8789 | 情报域适配层 | @wangwei |
+| `intel-serve` | 8089 | reasonix serve（情报域推理引擎） | @wangwei |
+
+改端口只改 `config/services.json`（+ 对应 `config/env/*.env.tmpl` 里的同名变量），
+启动脚本、健康检查、状态表、registry 会一起跟着变。
+
+## 5 分钟跑起来
+
+```powershell
+# 1) 生成环境：config/env/shared.env（key/token 默认是占位符 sk-xxxx，先换成真实值再跑）
+pwsh scripts/gen-env.ps1
+
+# 2) 按顺序拉起全部服务（各自独立进程，日志落 logs/）
+pwsh scripts/dev-up.ps1
+
+# 3) 一屏看状态
+pwsh scripts/status.ps1
+
+# 4) 全停
+pwsh scripts/dev-down.ps1
 ```
 
-## Configuration
+Linux 服务器同名脚本（读同一份 `services.json`）：
 
-A minimal `reasonix.toml` — one provider and a default model — is enough to start:
-
-```toml
-default_model = "deepseek-flash"
-
-[[providers]]
-name        = "deepseek-flash"
-kind        = "openai"
-base_url    = "https://api.deepseek.com"
-model       = "deepseek-v4-flash"
-api_key_env = "DEEPSEEK_API_KEY"
+```bash
+bash scripts/gen-env.sh
+bash scripts/dev-up.sh            # 或 --group pentest / --only brain,tir
+bash scripts/status.sh
+bash scripts/dev-down.sh
 ```
 
-Resolution order is **flag > `./reasonix.toml` > the user config file >
-built-in defaults**; starting with **EduShield v1.8.1**, the user file lives at
-`~/.reasonix/config.toml` on macOS/Linux and
-`%AppData%\reasonix\config.toml` on Windows. See
-**[Configuration paths](./docs/CONFIG_PATHS.md)** for migration details and the
-full `config.toml` / `.env` structure. Provider entries name secrets with
-`api_key_env`; the secret values themselves live in EduShield's global
-`<EduShield home>/.env`, shared by CLI and desktop. Project `.env` files are not
-provider-key runtime fallbacks, but still feed workspace-scoped, non-provider
-`${VAR}` expansion for MCP/plugin settings without importing EduShield control
-variables. Permissions, the sandbox, plugins (MCP), slash
-commands, `@` references, and two-model setup are all in the
-**[Guide](./docs/GUIDE.md)**.
+只想起一个域（本地调试自己的模块，不打扰别人）：
 
-## Documentation
+```powershell
+pwsh scripts/dev-up.ps1 -Group logaudit      # serve 8788
+pwsh scripts/dev-up.ps1 -Only brain,tir      # 大脑 + TIR
+pwsh scripts/dev-up.ps1 -Only frontend-dev   # 前端热更新
+```
 
-- **[CLI reference](./docs/CLI.md)** — interactive and one-shot commands,
-  structured output, resume, permission modes, and searchable pickers.
-- **[Guide](./docs/GUIDE.md)** — configuration, permissions & sandbox, plugins
-  (MCP), slash commands, `@` references, two-model collaboration.
-- **[Subagent profiles](./docs/SUBAGENT_PROFILES.md)** — create, share, preview,
-  run, edit, and safely delete isolated agent profiles from desktop or CLI.
-- **[Capability diagnostics](./docs/CAPABILITY_DIAGNOSTICS.md)** —
-  `reasonix doctor capabilities`, desktop Settings → Diagnostics, and the
-  `/reasonix-guide` skill for skills/hooks/MCP/plugin troubleshooting.
-- **[Recovery and Safe Mode](./docs/RECOVERY.md)** — Guard diagnostics,
-  configuration snapshots, native recovery, update rollback, and optional
-  AI-assisted repair plans.
-- **[Bot guide](./docs/BOT_GUIDE.md)** — connect Feishu, Lark, and WeChat bots
-  from the desktop app, then use approvals, YOLO, and commands from IM.
-- **[Spec](./docs/SPEC.md)** — engineering contract: architecture, registries,
-  data types, and roadmap.
-- **[Task contracts & pause policy](./docs/TASK_CONTRACT.md)** — structure
-  complex requests with context, output boundaries, constraints, and when to ask.
-- **[Tool contract](./docs/TOOL_CONTRACT.md)** — provider-visible built-in tool
-  names, read-only flags, and schema snapshot guard.
-- **[Migrating from 0.x](./docs/MIGRATING.md)** — moving from the legacy
-  TypeScript releases to the 1.0 Go rewrite.
-- **[Checkpoints & rewind](./docs/CHECKPOINTS.md)** — the snapshot-based edit
-  safety net (Esc-Esc / `/rewind`).
+> `pentest / logaudit / intel` 三个 reasonix 进程需要先构建二进制
+> （`apps/<域>/bin/reasonix`，`make build`）。缺二进制时 `dev-up` 会直接告诉你
+> `need-build`，而不是起一个空壳进程。
 
-<br/>
+## 配置地图：改什么去哪里
 
-## Star History
+| 想改的东西 | 改这里 | 会不会影响别人 |
+|---|---|---|
+| 端口 / 启动命令 / 依赖顺序 / 健康检查 | `config/services.json` | 影响整仓，改动要 review |
+| API key、代理、部件 token | `config/env/shared.env`（由 `.example` 复制） | 影响所有域 |
+| 某个域的模型/权限/工具 | `apps/<域>/.reasonix-home/config.toml` | 只影响该域 |
+| 某域的运行参数（超时、目录） | `config/env/<域>.env.tmpl` | 只影响该域 |
+| 大脑识别哪些部件、指向哪个端口 | `config/registry/brain.registry.json.tmpl` | 大脑与对应域 |
+| 跨模块字段（TaskMessage/Finding/Report） | `docs/HTTP-CONTRACT.md` + `packages/contracts/` | 全部，必须同步版本 |
 
-<a href="https://www.star-history.com/?repos=esengine%2FDeepSeek-Reasonix&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=esengine/DeepSeek-Reasonix&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=esengine/DeepSeek-Reasonix&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=esengine/DeepSeek-Reasonix&type=date&legend=top-left" />
- </picture>
-</a>
+约定：**端口/依赖归整仓，模型/权限归模块，密钥归 `shared.env`**。三类不混写，
+就不会出现"改个端口要翻六个仓库"的情况。
 
-<br/>
+## 模块边界（成员协作规则）
 
-## Acknowledgments
+1. **不跨目录 import**。需要别的模块的数据，走 HTTP（大脑是唯一编排者，域之间不直连）。
+2. **对外只暴露契约里的端点**（`/submit` `/status` `/events` 或 `/api/tir/*`），
+   内部实现随便改。
+3. **端口从环境变量来**，不在代码里写死（见 `docs/ADD-MODULE.md` 的自检清单）。
+4. **密钥只从环境变量来**，任何 `.env` / token 都不进 git（`.gitignore` 已覆盖）。
+5. **改契约先改文档**：`docs/HTTP-CONTRACT.md` 里的字段加一次、版本加一次，
+   六个模块按需跟进，而不是某一方偷偷加字段。
 
-A small list of folks whose work has shaped EduShield the most — the current top
-20 contributors by commit count. The full contributor graph is on
-[GitHub](https://github.com/esengine/DeepSeek-Reasonix/graphs/contributors?all=1).
+## 文档索引
 
-<!-- reasonix-top-contributors:start -->
-| Contributor | Contributor | Contributor | Contributor |
-| --- | --- | --- | --- |
-| [**SivanCola**](https://github.com/SivanCola) | [**esengine**](https://github.com/esengine) | [**ttmouse**](https://github.com/ttmouse) | [**lifu963**](https://github.com/lifu963) |
-| **reasonix** (anonymous) | [**HUQIANTAO**](https://github.com/HUQIANTAO) | [**GTC2080**](https://github.com/GTC2080) | [**light-front-theory**](https://github.com/light-front-theory) |
-| **merge-order-check** (anonymous) | [**Li-Charles-One**](https://github.com/Li-Charles-One) | [**eghrhegpe**](https://github.com/eghrhegpe) | **wufengfan** (anonymous) |
-| [**CVEngineer66**](https://github.com/CVEngineer66) | [**dependabot\[bot\]**](https://github.com/apps/dependabot) | [**lanshi17**](https://github.com/lanshi17) | [**SuMuxi66**](https://github.com/SuMuxi66) |
-| [**CnsMaple**](https://github.com/CnsMaple) | [**cyq1017**](https://github.com/cyq1017) | [**JesonChou**](https://github.com/JesonChou) | [**XTLine**](https://github.com/XTLine) |
-<!-- reasonix-top-contributors:end -->
-
-Also a separate thank-you to [**Bernardxu123**](https://github.com/Bernardxu123)
-for designing the project logo, and to
-[AIGC Link](https://xhslink.com/m/80ngts127cA) for promoting the project on XiaoHongShu.
-
-<p align="center">
-  <a href="https://github.com/esengine/DeepSeek-Reasonix/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=esengine/DeepSeek-Reasonix&max=100&columns=12" alt="Contributors to esengine/DeepSeek-Reasonix" width="860"/>
-  </a>
-</p>
-
-<br/>
-
----
-
-<p align="center">
-  <sub>MIT — see <a href="./LICENSE">LICENSE</a></sub>
-  <br/>
-  <sub>Built by the community at <a href="https://github.com/esengine/DeepSeek-Reasonix/graphs/contributors">esengine/DeepSeek-Reasonix</a></sub>
-</p>
+| 文档 | 内容 |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 整体架构、一次任务的完整链路、为什么这样切分 |
+| [docs/HTTP-CONTRACT.md](docs/HTTP-CONTRACT.md) | 模块间 HTTP 契约（逐个端点、鉴权、超时、错误码） |
+| [docs/PORTS.md](docs/PORTS.md) | 端口与端口冲突排查 |
+| [docs/ADD-MODULE.md](docs/ADD-MODULE.md) | 新成员接入：30 分钟加一个域 |
+| [docs/MIGRATION.md](docs/MIGRATION.md) | 从六个独立仓库合并到本仓（保留 git 历史） |
+| [docs/REFACTOR-LOG.md](docs/REFACTOR-LOG.md) | 合并时对源码做过的**全部**改动（端口/token 环境变量化） |
+| [config/reasonix/README.md](config/reasonix/README.md) | 三份 reasonix 配置的差异与维护约定 |
+| [config/registry/README.md](config/registry/README.md) | 大脑部件注册表的格式与加域方法 |
+| [packages/contracts/README.md](packages/contracts/README.md) | 协议 schema 的生成与各语言用法 |

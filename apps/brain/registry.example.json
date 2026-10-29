@@ -1,0 +1,4 @@
+{
+  "pentest": {"host": "127.0.0.1", "port": 8787, "token": "tk_pentest_xxx", "auth": "bearer"},
+  "logaudit": {"host": "127.0.0.1", "port": 8788, "token": "tk_logaudit_xxx", "auth": "cookie"}
+}

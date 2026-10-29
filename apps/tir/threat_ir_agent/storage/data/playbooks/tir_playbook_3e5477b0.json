@@ -1,0 +1,80 @@
+{
+  "playbook_id": "tir_playbook_3e5477b0",
+  "alert_id": "tir_alert_899e4d14",
+  "task_id": "ingest:AntSword2.pcap#parse_error",
+  "level": "low",
+  "objective": "对 LOW 级威胁「PCAP文件解析失败」执行应急处置",
+  "mode": "suggestion",
+  "steps": [
+    {
+      "seq": 1,
+      "phase": "观察(Monitor)",
+      "action": "确认告警信息，检查PCAP文件AntSword2.pcap的链路类型，确认当前linktype=0，仅支持Ethernet(linktype=1)。",
+      "expected_command": "capinfos AntSword2.pcap | grep 'Link type'",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "该告警为解析错误，无攻击行为，首先确认文件格式问题，避免误判。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 2,
+      "phase": "观察(Monitor)",
+      "action": "检查安全检测系统日志，确认解析失败是否影响其他文件，并评估是否有潜在威胁被遗漏。",
+      "expected_command": "grep 'parse_error' /var/log/security/parser.log",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "确保解析失败是孤立事件，防止因技术故障导致真实攻击未被检测。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 3,
+      "phase": "加固建议(Hardening)",
+      "action": "使用工具将PCAP文件转换为Ethernet链路类型，或重新捕获流量，确保文件可被正确解析。",
+      "expected_command": "editcap -T ethernet AntSword2.pcap AntSword2_fixed.pcap",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "修复文件格式，使安全检测系统能够正常分析，避免因解析失败而遗漏潜在威胁。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 4,
+      "phase": "加固建议(Hardening)",
+      "action": "更新安全检测系统的PCAP解析模块，增加对多种链路类型的支持，或添加格式校验机制。",
+      "expected_command": "",
+      "risk_level": "medium",
+      "requires_approval": true,
+      "rationale": "从根源上解决解析失败问题，提高系统健壮性，但涉及系统更新，需人工确认。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 5,
+      "phase": "复盘(Lessons)",
+      "action": "记录本次事件，分析文件来源，确认AntSword2.pcap是否来自可疑渠道，并评估是否需要进一步调查。",
+      "expected_command": "",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "虽然当前判定为良性，但文件名暗示可能与蚁剑相关，需确认文件来源，防止未来出现真实威胁。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 6,
+      "phase": "复盘(Lessons)",
+      "action": "制定PCAP文件处理规范，要求所有上传文件必须符合Ethernet链路类型，并添加预处理步骤。",
+      "expected_command": "",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "通过流程改进，减少类似解析错误，提升安全检测效率。",
+      "status": "pending",
+      "simulated_result": null
+    }
+  ],
+  "summary": "已按 low 级威胁自动生成 6 步处置预案（suggestion 模式）",
+  "confidence": 0.95,
+  "mitre": [],
+  "created_at": "2026-08-27T17:18:45.879938Z"
+}

@@ -1,0 +1,69 @@
+{
+  "playbook_id": "tir_playbook_cdf3f748",
+  "alert_id": "tir_alert_aee9d5a3",
+  "task_id": "ingest:AntSword2.pcap#parse_error",
+  "level": "low",
+  "objective": "对 LOW 级威胁「PCAP文件解析失败」执行应急处置",
+  "mode": "suggestion",
+  "steps": [
+    {
+      "seq": 1,
+      "phase": "观察(Monitor)",
+      "action": "确认告警详情，核实PCAP文件路径和解析错误信息，判断是否为误报。",
+      "expected_command": "file \"D:\\学习资料\\实验\\AntSword2.pcap\"",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "该告警为解析错误，无实际攻击行为，首先需确认文件格式和错误原因，避免误判。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 2,
+      "phase": "观察(Monitor)",
+      "action": "检查PCAP文件是否完整，尝试使用其他工具（如Wireshark、tshark）打开或解析该文件，确认是否因工具兼容性问题导致。",
+      "expected_command": "tshark -r \"D:\\学习资料\\实验\\AntSword2.pcap\" -c 10",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "通过多种工具验证文件可读性，区分是文件损坏还是解析器限制，为后续处理提供依据。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 3,
+      "phase": "加固建议(Hardening)",
+      "action": "若文件确实为linktype=0（如Raw IP或未知类型），使用工具（如editcap）转换链路层类型为Ethernet，或重新抓包获取标准Ethernet格式的PCAP文件。",
+      "expected_command": "editcap -T ether \"D:\\学习资料\\实验\\AntSword2.pcap\" \"D:\\学习资料\\实验\\AntSword2_ethernet.pcap\"",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "转换或重新抓包可解决解析失败问题，确保后续安全分析工具能正确处理文件。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 4,
+      "phase": "加固建议(Hardening)",
+      "action": "更新安全检测系统的PCAP解析模块，增加对非Ethernet链路层类型的支持，或添加预处理步骤以自动转换格式。",
+      "expected_command": "",
+      "risk_level": "medium",
+      "requires_approval": true,
+      "rationale": "从系统层面修复兼容性问题，减少未来类似误报，但涉及系统配置变更，需人工审批。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 5,
+      "phase": "复盘(Lessons)",
+      "action": "记录本次事件的处理过程和结果，更新告警过滤规则，对已知良性解析错误直接标记为低风险或忽略。",
+      "expected_command": "",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "通过复盘优化告警规则，降低无效告警干扰，提升安全运营效率。",
+      "status": "pending",
+      "simulated_result": null
+    }
+  ],
+  "summary": "已按 low 级威胁自动生成 5 步处置预案（suggestion 模式）",
+  "confidence": 0.9,
+  "mitre": [],
+  "created_at": "2026-08-27T17:17:15.018049Z"
+}

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AiSOC 校园智盾 · 大脑面板</title>
+  <style>
+    body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; margin: 24px; background: #f5f6f8; color: #222; }
+    h1 { font-size: 22px; }
+    .card { background: #fff; border-radius: 10px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    label { display: inline-block; min-width: 70px; margin: 4px 0; }
+    input, select { padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px; width: 300px; }
+    button { padding: 8px 18px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; overflow: auto; max-height: 320px; font-size: 13px; white-space: pre-wrap; }
+    .muted { color: #888; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #eef2ff; color: #4338ca; font-size: 12px; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <h1>AiSOC 校园智盾 · 大脑面板</h1>
+
+  <div class="card">
+    <h3>下发任务</h3>
+    <div>
+      <label>任务</label><input id="task" value="分析 demo-campus.edu.cn 的日志并验证漏洞" style="width: 460px"><br>
+      <label>域</label>
+      <select id="domain">
+        <option value="logaudit" selected>logaudit 日志审计</option>
+        <option value="pentest">pentest 渗透测试</option>
+      </select><br>
+      <label>目标</label><input id="target" value="demo-campus.edu.cn"><br>
+      <label>管道</label>
+      <select id="pipeline">
+        <option value="">无（单域）</option>
+        <option value="data_leak">data_leak 数据泄露调查（审计→渗透）</option>
+      </select><br><br>
+      <button onclick="createTask()">创建任务</button>
+      <span id="taskId" class="muted"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>任务查询</h3>
+    <input id="queryId" placeholder="task_id">
+    <button onclick="queryTask()">查状态</button>
+    <button onclick="queryFindings()">查证据</button>
+    <button onclick="queryReport()">查报告</button>
+    <button onclick="queryAlarms()">XDR 告警样例</button>
+    <pre id="result">（结果区）</pre>
+  </div>
+
+  <div class="card">
+    <h3>实时事件流（SSE）</h3>
+    <pre id="stream">等待事件…</pre>
+  </div>
+
+  <script>
+    let lastTaskId = "";
+
+    async function createTask() {
+      const body = {
+        task: document.getElementById("task").value,
+        domain: document.getElementById("domain").value,
+        target: document.getElementById("target").value,
+        pipeline: document.getElementById("pipeline").value || null,
+      };
+      const resp = await fetch("/api/tasks", {
+        method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      document.getElementById("taskId").textContent = resp.ok ? `已创建: ${data.task_id}` : `错误: ${JSON.stringify(data)}`;
+      if (resp.ok) { lastTaskId = data.task_id; document.getElementById("queryId").value = data.task_id; }
+    }
+
+    async function queryTask() {
+      const id = document.getElementById("queryId").value.trim();
+      if (!id) return alert("先输入 task_id");
+      const data = await fetch(`/api/tasks/${id}`).then(r => r.json());
+      show(data);
+    }
+    async function queryFindings() {
+      const id = document.getElementById("queryId").value.trim();
+      const data = await fetch(`/api/findings?task_id=${id}`).then(r => r.json());
+      show(data);
+    }
+    async function queryReport() {
+      const id = document.getElementById("queryId").value.trim();
+      const data = await fetch(`/api/reports/${id}`).then(r => r.json());
+      document.getElementById("result").textContent = data.report || JSON.stringify(data);
+    }
+    async function queryAlarms() {
+      const data = await fetch("/api/data/alarms?limit=10").then(r => r.json());
+      show({source: data.source, count: data.count, sample: (data.alarms || []).map(a => ({id: a.id, severity: a.severity, title: a.title, src: a.source_ip}))});
+    }
+    function show(obj) {
+      document.getElementById("result").textContent = JSON.stringify(obj, null, 2);
+    }
+
+    const es = new EventSource("/api/stream");
+    const streamEl = document.getElementById("stream");
+    streamEl.textContent = "";
+    es.onmessage = (e) => {
+      if (!e.data) return;
+      const evt = JSON.parse(e.data);
+      streamEl.textContent += `[${evt.domain}] ${evt.event} ${evt.task_id} ${JSON.stringify(evt.payload)}\n`;
+      streamEl.scrollTop = streamEl.scrollHeight;
+    };
+  </script>
+</body>
+</html>

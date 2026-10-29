@@ -1,0 +1,11 @@
+# 威胁警报-应急响应 子Agent 依赖说明
+# ==================================
+# 说明：本子 Agent **不引入任何新的第三方依赖**，全部复用 edushield 雏形系统
+# 已具备的依赖（见 edushield/edushield/requirements.txt）：
+#   fastapi / uvicorn / pydantic / httpx / python-dotenv
+# 如需在全新环境中运行，安装以下（与 edushield 相同版本族即可）：
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.0.0
+httpx>=0.27.0
+python-dotenv>=1.0.0

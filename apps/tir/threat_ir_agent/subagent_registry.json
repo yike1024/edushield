@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "registered_at": "2026-08-21T16:22:35.442445+00:00",
+  "subagent": {
+    "name": "threat-ir-agent",
+    "namespace": "tir_",
+    "version": "1.0.0",
+    "scope": "威胁警报 + 应急响应（仅此两项，无其他模块）",
+    "entry_points": {
+      "module_import": "from threat_ir_agent import ThreatIRSubAgent",
+      "cli": "python -m threat_ir_agent <ingest|playbook|confirm|serve>",
+      "http": "http://127.0.0.1:8090/api/tir/health"
+    },
+    "model_gateway": {
+      "brain": "DeepSeek-Reasonix-Security（只调用对外入口，不修改模型）",
+      "transport": "reasonix-cli / openai-api / mock(auto)",
+      "configured_mode": "mock"
+    },
+    "storage": "D:\\学习资料\\jiebang\\threat_ir_agent\\storage\\data",
+    "notification": {
+      "sync": "返回值注入主对话界面展示",
+      "async_webhook": "未配置(TIR_NOTIFY_URL)"
+    }
+  },
+  "integrity_check": {
+    "edushield_repo_clean": false,
+    "edushield_status": "M reasonix.toml",
+    "deepseek_reasonix_repo_clean": false,
+    "deepseek_reasonix_status": "M .githooks/pre-push\n M REASONIX.md\n M dev\n M docs/TOOL_CONTRACT.md\n M internal/boot/boot.go\n M internal/boot/boot_test.go\n M internal/cli/theme.go\n M internal/config/config.go\n M internal/environment/probe.go\n M internal/skill/builtins.go\n M prod_fast_test\n M prod_test\n M scripts/cache-guard.sh\n M scripts/check-cache-impact.sh\n M scripts/desktop-build.sh\n?? go1.26.5.linux-amd64.tar.gz\n?? internal/evidence/finding.go\n?? internal/skill/workflow.go\n?? internal/tool/builtin/cvesearch.go\n?? internal/tool/builtin/dns_enum.go\n?? internal/tool/builtin/findings_tool.go\n?? internal/tool/builtin/forensic.go\n?? internal/tool/builtin/hashid.go\n?? internal/tool/builtin/httpprobe.go\n?? internal/tool/builtin/phase_tool.go\n?? internal/tool/builtin/portscan.go\n?? internal/tool/builtin/report_tool.go\n?? internal/tool/builtin/sslcheck.go\n?? internal/tool/builtin/subdomain.go\n?? internal/tool/builtin/vulnscan.go\n?? internal/tool/builtin/whois_lookup.go",
+    "note": "本子Agent 全部产出文件位于工作目录 threat_ir_agent/ 下；edushield / DeepSeek-Reasonix-Security 仓库若显示有改动，为注册时点观察到的**既有状态**（早于本子Agent开发，仅被只读检查），本子Agent 未修改其任何存量文件（可用文件修改时间戳复核）"
+  }
+}

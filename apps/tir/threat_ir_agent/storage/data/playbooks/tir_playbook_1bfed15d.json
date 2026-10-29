@@ -1,0 +1,115 @@
+{
+  "playbook_id": "tir_playbook_1bfed15d",
+  "alert_id": "tir_alert_76b74f1d",
+  "task_id": "ingest:1111.pcap#1",
+  "level": "medium",
+  "objective": "对 MEDIUM 级威胁「疑似SSH弱口令爆破」执行应急处置",
+  "mode": "suggestion",
+  "steps": [
+    {
+      "seq": 1,
+      "phase": "遏制(Containment)",
+      "action": "在防火墙或边界设备上临时封禁源IP 14.0.0.120对目标10.0.0.112的访问，并限制其对8080端口的连接，防止进一步爆破尝试。",
+      "expected_command": "iptables -A INPUT -s 14.0.0.120 -d 10.0.0.112 -p tcp --dport 8080 -j DROP",
+      "risk_level": "medium",
+      "requires_approval": true,
+      "rationale": "封禁源IP可立即阻断攻击源，防止后续暴力破解，但需人工确认以避免误封正常用户。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 2,
+      "phase": "遏制(Containment)",
+      "action": "在目标服务器上临时启用访问控制，对来自14.0.0.120的请求返回403或进行验证码挑战，降低爆破成功率。",
+      "expected_command": "配置Web服务器（如Nginx）添加规则：deny 14.0.0.120;",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "应用层限制可快速缓解攻击，且影响范围小，无需人工审批。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 3,
+      "phase": "调查(Investigation)",
+      "action": "检查目标服务器10.0.0.112的HTTP服务日志（如access.log和error.log），确认是否存在大量401认证失败记录，并统计源IP的请求频率和模式。",
+      "expected_command": "grep '14.0.0.120' /var/log/nginx/access.log | grep ' 401 ' | wc -l",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "日志分析可验证告警真实性，判断是否为误报或正常用户多次输错密码。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 4,
+      "phase": "调查(Investigation)",
+      "action": "确认源IP 14.0.0.120是否为校园网内部IP，查询IP归属和用户信息，以评估威胁来源。",
+      "expected_command": "whois 14.0.0.120 或查询校园网IP管理数据库",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "若为校内IP，可能为误报或内部用户行为，需进一步联系用户确认；若为外部IP，则加强封禁。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 5,
+      "phase": "调查(Investigation)",
+      "action": "检查目标服务器上是否存在异常账户或近期成功登录记录，确认是否有账户被攻破。",
+      "expected_command": "last -f /var/log/auth.log | grep 10.0.0.112",
+      "risk_level": "medium",
+      "requires_approval": false,
+      "rationale": "确认是否有成功爆破，评估影响范围，为后续处置提供依据。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 6,
+      "phase": "加固(Hardening)",
+      "action": "在目标服务器上启用或加强认证失败锁定策略，例如设置连续失败5次后锁定账户15分钟。",
+      "expected_command": "在SSH配置中设置MaxAuthTries 3，或使用fail2ban配置jail",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "降低暴力破解成功率，防止类似攻击再次发生。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 7,
+      "phase": "加固(Hardening)",
+      "action": "建议目标服务使用强密码策略，并考虑启用多因素认证（MFA）以增强安全性。",
+      "expected_command": "修改密码策略配置文件，如/etc/pam.d/system-auth",
+      "risk_level": "low",
+      "requires_approval": false,
+      "rationale": "从根源上减少弱口令风险，提高账户安全性。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 8,
+      "phase": "加固(Hardening)",
+      "action": "在校园网边界或核心交换机上配置速率限制或IDS/IPS规则，对类似爆破行为进行实时检测和自动阻断。",
+      "expected_command": "配置Snort规则或防火墙连接限制模块",
+      "risk_level": "medium",
+      "requires_approval": true,
+      "rationale": "提升整体防护能力，但涉及网络设备配置变更，需人工审批。",
+      "status": "pending",
+      "simulated_result": null
+    },
+    {
+      "seq": 9,
+      "phase": "复盘(Lessons)",
+      "action": "按 复盘(Lessons) 阶段完成人工确认后的处置",
+      "expected_command": "",
+      "risk_level": "low",
+      "requires_approval": true,
+      "rationale": "阶段骨架兜底步骤",
+      "status": "pending",
+      "simulated_result": null
+    }
+  ],
+  "summary": "已按 medium 级威胁自动生成 9 步处置预案（suggestion 模式）",
+  "confidence": 0.6,
+  "mitre": [
+    "T1110"
+  ],
+  "created_at": "2026-08-27T17:16:45.526636Z"
+}

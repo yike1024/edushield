@@ -1,0 +1,731 @@
+"""AiSOC 大脑 — FastAPI 接口层（阶段 4 完整版）。
+
+端口：6657（aisoc-docs 01）。
+路由：
+    POST /api/tasks                  创建任务（单域 或 pipeline 多阶段）
+    GET  /api/tasks/{task_id}        任务状态 + 思维链
+    GET  /api/tasks/{task_id}/export 审计导出（JSON）
+    GET  /api/findings               查询证据（?task_id=）
+    GET  /api/reports/{task_id}      报告
+    GET  /api/registry               部件注册表
+    GET  /api/data/alarms            深信服 XDR 告警（样例模式）
+    GET  /api/data/alarms/summary    告警统计
+    GET  /api/stream                 实时事件流（SSE）
+    POST /api/approve                审批应答（记录账本）
+    GET  /api/health                 健康检查
+    /                                前端面板（static/index.html）
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import queue
+import threading
+import time
+from pathlib import Path
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+
+import httpx
+
+from config.settings import settings
+from data_source import get_sample_loader
+from data_source.xdr_client import live_enabled
+from eventhub import get_hub
+from llm import chat_stream, chat_stream_events, chat_text
+from orchestrator import (
+    PIPELINES,
+    BrainError,
+    _auth_headers,
+    check_target_whitelisted,
+    gc_expired_sessions,
+    get_registry,
+    intent_is_task,
+    part_busy,
+    parse_task_intent,
+    run_task,
+)
+from protocol import Domain, TaskStatus, new_task_id
+import runtime_settings
+from session import get_store
+import whitelist
+
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+)
+logger = logging.getLogger("aisoc-brain")
+
+app = FastAPI(
+    title="AiSOC 大脑（校园智盾）",
+    description="多 Agent 安全运营平台大脑：编排调度 · 威胁判定 · 会话管理 · 审计留档 · 报告",
+    version="0.4.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ---- 部件会话缓存 GC（启动期后台 task，每 30 分钟跑一次） ----
+async def _session_gc_loop() -> None:
+    """每 30 分钟清理一次 (session_id, domain) 过期条目。"""
+    while True:
+        try:
+            await asyncio.sleep(30 * 60)
+            n = gc_expired_sessions()
+            if n:
+                logger.info(f"[api] 后台 GC 清理 {n} 条过期会话缓存")
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.warning(f"[api] 会话 GC 异常（忽略）: {e}")
+
+
+@app.on_event("startup")
+async def _on_startup() -> None:
+    app.state.session_gc_task = asyncio.create_task(_session_gc_loop())
+    logger.info("[api] 会话缓存 GC 后台任务已启动（周期 30 分钟）")
+
+    # RAG 幂等播种：后台线程执行（chroma 首次建库算 embedding 略慢，不阻塞启动；
+    # 库已存在则立刻跳过）。启动瞬间 ingest 的检索可能在库就绪前返回空=无注入，属正常。
+    def _rag_seed():
+        try:
+            from rag import get_knowledge_base
+            get_knowledge_base().ensure_seeded()
+        except Exception as e:
+            logger.warning(f"[RAG] 后台播种异常: {e}")
+
+    threading.Thread(target=_rag_seed, daemon=True).start()
+
+
+@app.on_event("shutdown")
+async def _on_shutdown() -> None:
+    task = getattr(app.state, "session_gc_task", None)
+    if task:
+        task.cancel()
+
+
+# 统一错误体：{"error": "...", "detail": "..."}（前端契约）
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": str(exc.detail), "detail": str(exc.detail)},
+    )
+
+
+# ---- API Models ----
+
+class TaskRequest(BaseModel):
+    task: str = Field(description="自然语言任务描述")
+    domain: str = Field(description="路由域：pentest | logaudit", examples=["logaudit"])
+    target: str = Field(description="目标 IP/域名/URL，必须在授权白名单内", examples=["demo-campus.edu.cn"])
+    params: dict = Field(default_factory=dict)
+    tools: list[str] = Field(default_factory=list)
+    pipeline: Optional[str] = Field(default=None, description="多阶段管道：data_leak（可空）", examples=["data_leak"])
+    session_id: Optional[str] = Field(default=None, description="前端会话 ID；同会话内复用部件上下文，换会话自动重置（aisoc-docs 14 §会话隔离）")
+
+
+class ApproveRequest(BaseModel):
+    task_id: str
+    action: str = Field(description="审批的动作，如 firewall_block")
+    decision: str = Field(description="approved | denied")
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(description="用户消息")
+    system: str = Field(default="你是 AiSOC 校园安全运营助手，回答简洁专业。")
+    pass_through: bool = Field(default=False, description="true 时部件事件原样透传（10 号契约）")
+    session_id: Optional[str] = Field(default=None, description="前端会话 ID；同会话内复用部件上下文，换会话自动重置")
+    use_rag: bool = Field(default=True, description="true 时普通问答前先检索本地安全知识库并注入上下文")
+
+
+class RuntimeSettingsBody(BaseModel):
+    defaultToolApprovalMode: Optional[str] = None
+    autoPlan: Optional[str] = None
+    memoryCompilerEnabled: Optional[bool] = None
+    subagentEffort: Optional[str] = None
+    maxSubagentDepth: Optional[int] = None
+    coldResumePrune: Optional[bool] = None
+    reasoningLanguage: Optional[str] = None
+
+
+class WhitelistBody(BaseModel):
+    action: str = Field(description="add | remove | set_enabled")
+    target: Optional[str] = None
+    enabled: Optional[bool] = None
+
+
+# ---- Routes ----
+
+@app.get("/")
+async def root():
+    return {
+        "name": "AiSOC 大脑（校园智盾）",
+        "version": "0.4.0",
+        "docs": "/docs",
+        "panel": "/static/index.html",
+    }
+
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok", "service": "aisoc-brain"}
+
+
+@app.get("/api/rag/search")
+async def rag_search(q: str, k: int = 5):
+    """RAG 知识检索（演示用，只读 Chroma）。返回命中的安全知识条目 + 相似度分数。
+
+    用法：GET /api/rag/search?q=SQL注入怎么防御&k=5
+    q 为空或库空时返回空 hits，不影响调用方。无写库、不调 LLM，零成本。
+    """
+    q = (q or "").strip()
+    if not q:
+        return {"query": q, "k": k, "hits": []}
+    try:
+        from rag import get_knowledge_base
+        hits = get_knowledge_base().search_with_scores(q, k=max(1, min(k, 20)))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"检索失败: {e}")
+    return {"query": q, "k": k, "hits": hits}
+
+
+def _prepare_task(domain: Domain, target: str, params: dict, tools: list[str],
+                  pipeline: Optional[str] = None) -> dict:
+    """创建任务记录（不启动后台线程），供 relay 场景先订阅部件流再派活。"""
+    if not check_target_whitelisted(target):
+        raise HTTPException(status_code=403, detail=f"目标不在授权白名单内: {target}")
+
+    part = get_registry().get(domain)  # 部件必须已注册（快速失败）
+
+    task_id = new_task_id()
+    store = get_store()
+    task_domain = "all" if pipeline else domain.value
+    store.create_task(task_id, task_domain, target)
+    get_hub().publish(task_id, task_domain, "task_created", {"target": target, "pipeline": pipeline or domain.value})
+    logger.info(f"[api] 收到任务 {task_id} domain={task_domain} target={target}")
+    return {
+        "task_id": task_id, "domain": domain, "target": target,
+        "pipeline": pipeline, "task_domain": task_domain, "part": part,
+    }
+
+
+def _start_task_thread(domain: Domain, target: str, params: dict, tools: list[str],
+                       task_id: str, pipeline: Optional[str] = None,
+                       session_id: Optional[str] = None):
+    """后台执行 run_task。"""
+    store = get_store()
+
+    def _run():
+        try:
+            run_task(domain, target, params, tools, task_id=task_id, pipeline=pipeline,
+                     session_id=session_id)
+        except Exception as e:
+            logger.exception(f"[api] 后台任务 {task_id} 异常")
+            store.transition(task_id, TaskStatus.FAILED, error=str(e))
+
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _create_and_run(domain: Domain, target: str, params: dict, tools: list[str],
+                    pipeline: Optional[str] = None,
+                    session_id: Optional[str] = None) -> dict:
+    """创建任务并后台派活（/api/tasks 与 /api/assess 共用）。"""
+    info = _prepare_task(domain, target, params, tools, pipeline)
+    _start_task_thread(domain, target, params, tools, info["task_id"], pipeline, session_id)
+    return {"task_id": info["task_id"], "status": "pending", "domain": info["task_domain"]}
+
+
+@app.post("/api/tasks", status_code=202)
+async def create_task(req: TaskRequest):
+    """创建任务：白名单校验 → 落库 → 后台派活（单域或管道）。
+
+    req.task（自然语言任务描述）会并入 params["task"] 一并下发部件，
+    与 /api/assess、/api/chat 的意图路由行为保持一致，否则部件只收到
+    目标收不到用户要求；调用方若已显式传 req.params["task"]，以显式
+    值为准（不覆盖）。
+    """
+    try:
+        domain = Domain(req.domain)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"未知 domain: {req.domain}，可选 {[d.value for d in Domain]}")
+
+    if req.pipeline and req.pipeline not in PIPELINES:
+        raise HTTPException(status_code=400, detail=f"未知 pipeline: {req.pipeline}，可选 {list(PIPELINES)}")
+
+    params = dict(req.params)
+    if req.task:
+        params.setdefault("task", req.task)
+
+    return _create_and_run(domain, req.target, params, req.tools, req.pipeline, req.session_id)
+
+
+@app.post("/api/assess")
+async def assess(req: ChatRequest):
+    """自然语言一句话 → 自动编排子智能体（chat 转 task）。
+
+    流程：解析意图(域/目标/管道) → 白名单校验 → 创建任务 → 返回 task_id。
+    前端拿到 task_id 后，用 /api/stream 和 /api/tasks/{id} 回显进度与结果。
+    """
+    intent = parse_task_intent(req.message)
+    if not intent.get("target"):
+        return {
+            "status": "need_target",
+            "reply": "请告诉我目标 IP 或域名，例如：扫描 8.215.92.252",
+        }
+    if not check_target_whitelisted(intent["target"]):
+        return {
+            "status": "rejected",
+            "reply": f"目标 {intent['target']} 不在授权白名单内，拒绝执行。",
+        }
+    try:
+        result = _create_and_run(intent["domain"], intent["target"], {"task": req.message}, [], intent["pipeline"], req.session_id)
+    except HTTPException as e:
+        return {"status": "error", "reply": str(e.detail)}
+
+    domain_label = result["domain"]
+    pipeline_text = f"，管道 {intent['pipeline']}" if intent["pipeline"] else ""
+    return {
+        "status": "task_created",
+        "task_id": result["task_id"],
+        "domain": intent["domain"].value,
+        "target": intent["target"],
+        "pipeline": intent["pipeline"],
+        "reply": f"已创建任务 {result['task_id']}（{domain_label}，目标 {intent['target']}{pipeline_text}），正在执行。",
+    }
+
+
+@app.get("/api/tasks")
+async def list_tasks(limit: int = 50):
+    """最近任务列表（仪表盘用）。"""
+    store = get_store()
+    tasks = store.list_tasks(limit=limit)
+    for t in tasks:
+        t["findings_count"] = len(store.list_findings(t["id"]))
+        stages = store.list_stages(t["id"])
+        t["stages"] = stages
+        running = next((s for s in stages if s["status"] == "running"), None)
+        t["current_stage"] = running["stage"] if running else (stages[-1]["stage"] if stages else "")
+    return {"tasks": tasks}
+
+
+@app.get("/api/tasks/{task_id}")
+async def get_task(task_id: str):
+    store = get_store()
+    task = store.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    stages = store.list_stages(task_id)
+    running = next((s for s in stages if s["status"] == "running"), None)
+    current_stage = running["stage"] if running else (stages[-1]["stage"] if stages else "")
+    return {
+        **task,
+        "findings_count": len(store.list_findings(task_id)),
+        "stages": stages,
+        "current_stage": current_stage,
+        "thought_chain": store.list_ledger(task_id),
+    }
+
+
+@app.get("/api/agents/status")
+async def agents_status():
+    """各身体部件忙闲状态（前端 Agent 状态墙）。"""
+    parts = get_registry().list()
+    for p in parts:
+        p["busy"] = part_busy(p["domain"])
+        p.pop("token", None)  # 脱敏
+
+    # 应急响应（TIR）是 REST 子 Agent，不走 reasonix 部件协议，单独探测
+    tir_status = "offline"
+    try:
+        r = httpx.get(f"{settings.TIR_BASE_URL}/api/tir/health", timeout=2)
+        tir_status = "ok" if r.status_code == 200 else "offline"
+    except Exception:
+        tir_status = "offline"
+
+    return {
+        "brain": {"status": "ok", "service": "aisoc-brain"},
+        "parts": parts,
+        "services": {
+            "tir": {"name": "应急响应 Agent", "port": 8090, "status": tir_status},
+        },
+    }
+
+
+@app.get("/api/tasks/{task_id}/export")
+async def export_task(task_id: str):
+    """审计导出（JSON）：任务 + 证据 + 账本 + 报告。"""
+    store = get_store()
+    data = store.export_task(task_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return data
+
+
+@app.get("/api/findings")
+async def list_findings(task_id: str):
+    store = get_store()
+    if not store.get_task(task_id):
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return {"task_id": task_id, "findings": store.list_findings(task_id)}
+
+
+@app.get("/api/reports/{task_id}")
+async def get_report(task_id: str):
+    store = get_store()
+    report = store.get_report(task_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="报告不存在（任务可能尚未完成）")
+    return {"task_id": task_id, "report": report["content"]}
+
+
+@app.get("/api/registry")
+async def registry():
+    parts = get_registry().list()
+    for p in parts:
+        p["token"] = "***"  # 脱敏，aisoc-docs 06：token 不落日志/不外泄
+    return {"parts": parts}
+
+
+@app.get("/api/whitelist")
+async def get_whitelist():
+    """授权白名单（前端管理按钮）。"""
+    return whitelist.get()
+
+
+@app.post("/api/whitelist")
+async def update_whitelist(body: WhitelistBody):
+    """编辑白名单：add（加目标）/ remove（删目标）/ set_enabled（开关）。"""
+    if body.action == "add":
+        if not body.target:
+            raise HTTPException(status_code=400, detail="add 需要 target")
+        return whitelist.add(body.target)
+    if body.action == "remove":
+        if not body.target:
+            raise HTTPException(status_code=400, detail="remove 需要 target")
+        return whitelist.remove(body.target)
+    if body.action == "set_enabled":
+        if body.enabled is None:
+            raise HTTPException(status_code=400, detail="set_enabled 需要 enabled")
+        return whitelist.set_enabled(body.enabled)
+    raise HTTPException(status_code=400, detail="action 只支持 add / remove / set_enabled")
+
+
+@app.get("/api/data/alarms")
+async def data_alarms(limit: int = 50, source: str = "auto"):
+    """深信服 XDR 告警数据（默认样例模式，配置联动码后可切 live）。"""
+    if source == "live":
+        if not live_enabled():
+            raise HTTPException(status_code=503, detail="XDR live 未配置：请设置 XDR_BASE_URL + XDR_AUTH_CODE")
+        raise HTTPException(status_code=501, detail="live 拉取需真实 XDR 环境，当前请用样例模式")
+    alarms = get_sample_loader().list(limit=limit)
+    return {"source": "sample", "count": len(alarms), "alarms": alarms}
+
+
+@app.get("/api/data/alarms/summary")
+async def data_alarms_summary():
+    alarms = get_sample_loader().list()
+    summary: dict[str, int] = {}
+    verdict_hint: dict[str, int] = {}
+    for a in alarms:
+        summary[a["severity"]] = summary.get(a["severity"], 0) + 1
+        verdict_hint[a["verdict_hint"]] = verdict_hint.get(a["verdict_hint"], 0) + 1
+    return {"total": len(alarms), "by_severity": summary, "by_verdict_hint": verdict_hint}
+
+
+@app.get("/api/stream")
+async def stream():
+    """实时事件流（SSE）—— 前端实时面板数据源。"""
+    hub = get_hub()
+    q = hub.subscribe()
+
+    async def gen():
+        try:
+            while True:
+                try:
+                    event = await asyncio.to_thread(q.get, timeout=15)
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                except Exception:
+                    yield ": ping\n\n"
+        finally:
+            hub.unsubscribe(q)
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@app.post("/api/approve")
+async def approve(req: ApproveRequest):
+    """审批应答（阶段 4 记录账本；审批门控在处置流程接入时启用）。"""
+    store = get_store()
+    if not store.get_task(req.task_id):
+        raise HTTPException(status_code=404, detail="任务不存在")
+    store.add_ledger(req.task_id, "human", f"approval_{req.decision}", {"action": req.action})
+    return {"task_id": req.task_id, "action": req.action, "decision": req.decision, "status": "recorded"}
+
+
+def _rag_augmented_system(system: str, message: str, k: int = 3) -> str:
+    """若本地知识库已就绪，检索与问题相关的知识，把摘要追加到 system 提示后。
+
+    幂等安全：库空 / chroma 未装 / 检索无命中 → 原样返回 system（RAG 不生效=无扰动）。
+    命中才返回扩充后的 system，供 chat 逻辑嵌入 messages。
+    """
+    try:
+        from rag import get_knowledge_base
+        hits = get_knowledge_base().search_with_scores(message, k=k)
+        if hits:
+            ctx = "\n".join(f"- {h['content']}" for h in hits)
+            return (f"{system}\n\n[以下为本机构建的安全知识库检索结果，可据此给出基于本库的建议，"
+                    f"仅作参考，勿逐字照抄]\n{ctx}")
+    except Exception as e:
+        logger.warning(f"[RAG] 检索失败，跳过注入: {e}")
+    return system
+
+
+def _chat_or_task(message: str, system: str, start: bool = True,
+                  session_id: Optional[str] = None, use_rag: bool = True) -> dict:
+    """聊天入口的意图路由：任务意图 → 创建任务；闲聊 → 正常回复。
+
+    start=False 时只创建任务记录、不启动后台线程（供 chat/stream 先订阅部件流再派活）。
+
+    session_id 不为空时，任务意图会透传到下游 run_task，使同会话内多个任务复用部件上下文。
+    """
+    intent = parse_task_intent(message)
+    if intent_is_task(message, intent):
+        if not check_target_whitelisted(intent["target"]):
+            return {"kind": "reply", "reply": f"目标 {intent['target']} 不在授权白名单内，拒绝执行。"}
+        try:
+            info = _prepare_task(intent["domain"], intent["target"], {"task": message}, [], intent["pipeline"])
+        except HTTPException as e:
+            return {"kind": "reply", "reply": str(e.detail)}
+        if start:
+            _start_task_thread(intent["domain"], intent["target"], {"task": message}, [],
+                               info["task_id"], intent["pipeline"], session_id)
+        pipeline_text = f"，管道 {intent['pipeline']}" if intent["pipeline"] else ""
+        result = {
+            "kind": "task",
+            "task_id": info["task_id"],
+            "domain": intent["domain"].value,
+            "target": intent["target"],
+            "pipeline": intent["pipeline"],
+            "part": info["part"],
+            "reply": (f"已创建任务 {info['task_id']}（{intent['domain'].value}，"
+                      f"目标 {intent['target']}{pipeline_text}），正在执行。"),
+        }
+        if not start:
+            return result
+        result.pop("part", None)  # 非 relay 场景不外泄 part 对象
+        return result
+    if use_rag:
+        system = _rag_augmented_system(system, message)
+    return {
+        "kind": "chat",
+        "reply": chat_text([
+            {"role": "system", "content": system},
+            {"role": "user", "content": message},
+        ]),
+    }
+
+
+@app.post("/api/chat")
+async def chat(req: ChatRequest):
+    """通用聊天接口（DeepSeek，非流式）；任务意图会自动转成任务。"""
+    return _chat_or_task(req.message, req.system, session_id=req.session_id, use_rag=req.use_rag)
+
+
+def _sse(obj: dict) -> str:
+    return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n"
+
+
+def _map_part_event(ev: dict, task_id: str) -> Optional[dict]:
+    """部件 /events 原生事件 → chat 帧（07-chat-stream-adaptive-relay §6.2，兼容 adapter 小写 kind）。"""
+    k = str(ev.get("kind") or ev.get("type") or "").lower()
+    if k in ("reasoning", "thinking"):
+        return {"thinking": ev.get("text") or ev.get("reasoning") or "", "task_id": task_id}
+    if k in ("tool_call", "tool_dispatch"):
+        tool = ev.get("tool") or {}
+        name = tool.get("name") if isinstance(tool, dict) else tool
+        return {"tool_call": {"tool": name or "", "args": ev.get("args") or {}}, "task_id": task_id}
+    if k == "tool_result":
+        tool = ev.get("tool") or {}
+        name = tool.get("name") if isinstance(tool, dict) else tool
+        return {
+            "tool_result": {
+                "tool": name or "",
+                "output": ev.get("output") or ev.get("text") or "",
+                "exit_code": ev.get("exit_code"),
+            },
+            "task_id": task_id,
+        }
+    if k in ("message", "text", "answer"):
+        return {"answer": {"text": ev.get("text") or ""}, "task_id": task_id}
+    if k in ("turn_phase", "phase", "stage_start"):
+        return {"stage_start": ev.get("phase") or ev.get("stage") or "", "task_id": task_id}
+    if k == "turn_started":
+        return {"stage_start": "turn", "task_id": task_id}
+    return None
+
+
+@app.post("/api/chat/stream")
+async def chat_stream_endpoint(req: ChatRequest):
+    """自适应接力流（07-chat-stream-adaptive-relay）。
+
+    普通对话：data: {"delta": ...} → [DONE]
+    任务意图：delta 确认 → task_created → 部件完整流接力（thinking/tool_call/tool_result/answer/stage_*）
+              → report_ready → [DONE]
+    """
+    result = _chat_or_task(req.message, req.system, start=False, session_id=req.session_id,
+                           use_rag=req.use_rag)
+
+    async def gen():
+        if result["kind"] == "chat":
+            sys_aug = (_rag_augmented_system(req.system, req.message) if req.use_rag else req.system)
+            if req.pass_through:
+                # pass_through 纯聊天：发 reasonix 风格原始帧（无 delta）
+                chat_task_id = new_task_id()
+                yield _sse({"turn_started": {}, "task_id": chat_task_id})
+                full = []
+                for ev in chat_stream_events([
+                    {"role": "system", "content": sys_aug},
+                    {"role": "user", "content": req.message},
+                ]):
+                    if "error" in ev:
+                        yield _sse({"kind": "stream_error",
+                                    "err": str(ev["error"].get("message", ""))[:500],
+                                    "task_id": chat_task_id})
+                        break
+                    yield _sse({**ev, "task_id": chat_task_id})
+                    if ev.get("text"):
+                        full.append(ev["text"])
+                yield _sse({"message": {"text": "".join(full)}, "task_id": chat_task_id})
+                yield _sse({"turn_done": {}, "task_id": chat_task_id})
+            else:
+                for delta in chat_stream([
+                    {"role": "system", "content": sys_aug},
+                    {"role": "user", "content": req.message},
+                ]):
+                    yield _sse({"delta": delta})
+            yield "data: [DONE]\n\n"
+            return
+
+        if result["kind"] == "reply":
+            if req.pass_through:
+                yield _sse({"error": {"code": "task_create_failed", "message": result["reply"]}})
+            else:
+                yield _sse({"delta": result["reply"]})
+            yield "data: [DONE]\n\n"
+            return
+
+        # ---- 任务意图：先订阅部件流，再派活，然后接力 ----
+        task_id = result["task_id"]
+        part = result["part"]
+        if not req.pass_through:
+            yield _sse({"delta": result["reply"]})
+            yield _sse({"task_id": task_id, "domain": result["domain"]})
+
+        events: queue.Queue = queue.Queue()
+        stop = threading.Event()
+
+        def _listen():
+            try:
+                with httpx.stream(
+                    "GET", f"{part.base_url}/events",
+                    headers=_auth_headers(part.token, part.auth),
+                    timeout=30,
+                ) as r:
+                    for line in r.iter_lines():
+                        if stop.is_set():
+                            break
+                        if not line.startswith("data:"):
+                            continue
+                        try:
+                            events.put(json.loads(line[5:].strip()))
+                        except json.JSONDecodeError:
+                            pass
+            except Exception as e:
+                events.put({"kind": "stream_error", "err": str(e)})
+
+        threading.Thread(target=_listen, daemon=True).start()
+        await asyncio.sleep(0.5)  # 等订阅 TCP 就绪
+        # 现在才启动后台执行（它内部会再次订阅并 submit）
+        _start_task_thread(Domain(result["domain"]), result["target"],
+                           {"task": req.message}, [], task_id, result["pipeline"],
+                           req.session_id)
+
+        deadline = time.monotonic() + settings.PART_TURN_TIMEOUT_S
+        saw_done = False
+        pass_through = req.pass_through
+        while not saw_done:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                ev = await asyncio.to_thread(events.get, timeout=min(remaining, 15))
+            except Exception:
+                continue
+            k = str(ev.get("kind") or "").lower()
+
+            if pass_through:
+                # 10 号契约：原样透传 reasonix 事件（只补 task_id）
+                yield _sse({**ev, "task_id": ev.get("task_id") or task_id})
+                if k == "turn_done":
+                    saw_done = True
+                    break
+                if k == "stream_error":
+                    break
+                continue
+
+            if k == "turn_done":
+                saw_done = True
+                if ev.get("err"):
+                    yield _sse({"error": {"code": "part_failed", "message": str(ev.get("err")), "task_id": task_id}})
+                else:
+                    yield _sse({"stage_finished": {"stage": result["domain"], "ok": True}, "task_id": task_id})
+                break
+            if k == "stream_error":
+                yield _sse({"error": {"code": "part_unreachable", "message": ev.get("err", ""), "task_id": task_id}})
+                break
+            mapped = _map_part_event(ev, task_id)
+            if mapped:
+                yield _sse(mapped)
+        stop.set()
+
+        if not pass_through:
+            yield _sse({"report_ready": {"task_id": task_id, "report_url": f"/api/tasks/{task_id}/export"}})
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@app.get("/api/settings/runtime")
+async def get_runtime_settings():
+    """运行时行为设置（后端权威值，全量 7 字段）。"""
+    return runtime_settings.get_all()
+
+
+@app.post("/api/settings/runtime")
+async def save_runtime_settings(body: RuntimeSettingsBody):
+    """保存运行时行为设置（部分字段即可），返回更新后的全量值。"""
+    try:
+        return runtime_settings.update(body.model_dump(exclude_none=True))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---- 前端静态面板（放在所有 API 路由之后，避免覆盖） ----
+_static_dir = Path(__file__).resolve().parent.parent / "static"
+_static_dir.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
+app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="panel")

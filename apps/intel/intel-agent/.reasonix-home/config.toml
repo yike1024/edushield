@@ -1,0 +1,80 @@
+# Reasonix configuration — 情报收集域 serve 实例（8089）
+# Resolution order: flag > ./reasonix.toml > ~/.reasonix/config.toml > built-in defaults.
+# 与 pentest/logaudit 实例一致：裸 serve，领域指令由任务输入携带。
+
+config_version = 4   # schema marker for diagnostics; old versions may ignore it
+default_model = "deepseek-flash"
+language      = "zh"   # ui/model language; empty = auto-detect from $LANG / $REASONIX_LANG
+credentials_store = "auto"   # legacy compatibility; provider keys are saved in Reasonix's global .env
+
+[ui]
+theme = "auto"   # auto|dark|light; CLI colors only; REASONIX_THEME can override per run
+
+[notifications]
+enabled = false   # system notifications for CLI and desktop turns; default off
+turn_done = true   # notify when a turn finishes
+approval_request = true   # notify when a tool approval is waiting
+ask_request = true   # notify when a question is waiting
+
+[network]
+proxy_mode = "auto"   # auto|env|custom|off; auto currently uses env proxy
+
+[environment]
+enabled = true   # inject a stable startup environment summary into the model prompt
+
+[agent]
+temperature       = 0.0
+auto_plan   = "off"   # user-level only: off|on; off keeps plan mode manual
+soft_compact_ratio  = 0.5   # notice only; keeps cache-first prefix intact
+tool_result_snip_ratio = 0.6
+compact_ratio       = 0.8
+compact_force_ratio = 0.9
+cold_resume_prune   = true
+
+[[providers]]
+name        = "deepseek-flash"
+kind        = "openai"
+base_url    = "https://api.deepseek.com"
+models      = ["deepseek-v4-flash"]
+default     = "deepseek-v4-flash"
+api_key_env = "DEEPSEEK_API_KEY"
+balance_url = "https://api.deepseek.com/user/balance"   # optional; wallet-balance endpoint shown in the status bar
+context_window = 1000000
+prices      = { "deepseek-v4-flash" = { cache_hit = 0.02, input = 1, output = 2, currency = "¥" } }
+
+[[providers]]
+name        = "deepseek-pro"
+kind        = "openai"
+base_url    = "https://api.deepseek.com"
+model       = "deepseek-v4-pro"
+api_key_env = "DEEPSEEK_API_KEY"
+balance_url = "https://api.deepseek.com/user/balance"
+context_window = 1000000
+price       = { cache_hit = 0.025, input = 3, output = 6, currency = "¥" }
+
+[tools]
+enabled = []   # empty = all built-in tools
+bash_timeout_seconds = 120
+
+[skills]
+# paths = []   # 情报收集如需 threatintel/seckb 插件，在 [[plugins]] 挂载
+
+[permissions]
+# 放权（intel 域不被 auto/ask 阻塞）：mode=allow + 无 ask 列表；
+# serve 运行期再切 tool-approval-mode=yolo，嵌套/敏感命令一律直接放行。
+# 仅保留 deny 底线：防误触系统级破坏命令（情报收集任务用不到，不构成阻塞）。
+mode  = "allow"
+deny = ["Bash(rm /*)", "Bash(rm -rf /*)", "Bash(dd of=/dev/*)", "Bash(mkfs*)",
+        "Bash(shutdown*)", "Bash(reboot*)", "Bash(halt*)", "Bash(poweroff*)"]
+
+[sandbox]
+# 情报收集需要外网（NVD / CISA / ExploitDB / GitHub 等情报源）
+bash    = "enforce"
+network = true
+
+[statusline]
+
+[bot]
+enabled = false
+
+[secrets]

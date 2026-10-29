@@ -1,4 +1,0 @@
-data: {"kind": "stream_error", "err": "[Errno 111] Connection refused", "task_id": "T20260902-081832305"}
-
-data: [DONE]
-

@@ -1,0 +1,212 @@
+# Reasonix configuration — security intel / penetration-testing assistant
+# ============================================================================
+# MVP scope: international intel (NVD / CISA KEV / ExploitDB / GitHub Advisory)
+# via the `threatintel` plugin + curated local KB via `seckb` + case ledger
+# via `case`. See .reasonix/skills/security-analyst/SKILL.md and
+# .reasonix/skills/threat-intel-collector/SKILL.md for behavior contracts.
+#
+# Build all three plugins before starting:
+#   go build -o bin/reasonix-plugin-case.exe       ./cmd/reasonix-plugin-case
+#   go build -o bin/reasonix-plugin-seckb.exe      ./cmd/reasonix-plugin-seckb
+#   go build -o bin/reasonix-plugin-threatintel.exe ./cmd/reasonix-plugin-threatintel
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# Provider: DeepSeek (config-driven; no hardcoded model in kernel)
+# ---------------------------------------------------------------------------
+[[providers]]
+name        = "deepseek"
+kind        = "openai"
+base_url    = "https://api.deepseek.com"
+models      = ["deepseek-v4-flash", "deepseek-v4-pro"]
+default     = "deepseek-v4-flash"
+api_key_env = "DEEPSEEK_API_KEY"
+context_window = 1000000
+effort      = "high"
+
+# Optional OpenAI-compatible embedding endpoint (reuses DeepSeek or any other).
+# Picked up by the seckb plugin when its EMBED_* env vars are set; see [[plugins]]
+# below.
+# [[providers]]
+# name        = "deepseek-embed"
+# kind        = "openai"
+# base_url    = "https://api.deepseek.com/v1"
+# model       = "BAAI/bge-m3"
+# api_key_env = "DEEPSEEK_API_KEY"
+# purpose     = "embeddings"
+
+# ---------------------------------------------------------------------------
+# Agent: persona + reasoning + planner
+# ---------------------------------------------------------------------------
+[agent]
+# Use the deeper model for the planner (lower temp + accuracy on tool choice),
+# the faster model for subagents. Both share the same provider entry above.
+model             = "deepseek-v4-flash"
+planner_model     = "deepseek-v4-pro"
+subagent_model    = "deepseek-v4-flash"
+# Domain persona prompt (security analyst). Stable across turns so DeepSeek's
+# prefix cache stays warm. Loaded from the project workspace.
+system_prompt_file = "./prompts/security_intel.md"
+temperature        = 0.2
+effort             = "high"
+reasoning_language = "auto"
+compact_ratio      = 0.80
+
+# ---------------------------------------------------------------------------
+# Environment: inject stable startup summary; do NOT mark offline — the
+# threatintel plugin needs outbound HTTPS to NVD / CISA / ExploitDB / GitHub.
+# ---------------------------------------------------------------------------
+[environment]
+enabled = true
+offline = false
+
+# ---------------------------------------------------------------------------
+# Tools: allow only what an intel + pentest workflow needs. The threatintel
+# plugin's MCP tools come up as mcp__threatintel__intel_*; seckb / case as
+# mcp__seckb__* / mcp__case__*. Listing them by registered name makes the
+# permission system auto-allow read-only calls and ask for the rest.
+# ---------------------------------------------------------------------------
+[tools]
+enabled = [
+  # Local file / shell primitives
+  "bash", "read_file", "write_file", "edit_file",
+  "glob", "grep", "code_index", "ls", "tree",
+  # Loop / planning
+  "todo_write", "complete_step", "update_goal",
+  # External research (read-only)
+  "web_fetch",
+  # KB + case ledger (security-analyst contract)
+  "mcp__seckb__kb_search",
+  "mcp__seckb__kb_ingest",
+  "mcp__seckb__kb_stats",
+  "mcp__case__case_open",
+  "mcp__case__case_load",
+  "mcp__case__evidence_add",
+  "mcp__case__evidence_list",
+  "mcp__case__case_verdict",
+  "mcp__case__case_close",
+  # Threat intel feeds (threat-intel-collector contract)
+  "mcp__threatintel__intel_cve_lookup",
+  "mcp__threatintel__intel_cve_recent",
+  "mcp__threatintel__intel_kev_check",
+  "mcp__threatintel__intel_kev_recent",
+  "mcp__threatintel__intel_exploitdb_search",
+  "mcp__threatintel__intel_github_advisory",
+  "mcp__threatintel__intel_stats",
+]
+bash_timeout_seconds         = 120
+mcp_startup_timeout_seconds  = 30
+mcp_call_timeout_seconds     = 60
+
+# ---------------------------------------------------------------------------
+# Sandbox: confine all writes to mvp/ and the per-plugin SQLite dirs.
+# forbid_read shields system / credential directories from the read tools.
+# network = true is REQUIRED for the threatintel plugin.
+# ---------------------------------------------------------------------------
+[sandbox]
+workspace_root = "D:/chengxu/Reasonix/mvp"
+allow_write    = [
+  "D:/chengxu/Reasonix/mvp/reports",
+  "D:/chengxu/Reasonix/mvp/kb-corpus",
+  "D:/chengxu/Reasonix/mvp/.reasonix",
+]
+forbid_read = [
+  "${HOME}/.ssh",
+  "${HOME}/.aws",
+  "${HOME}/.config/gh",
+  "C:/Users/*/Documents",
+  "C:/Windows",
+  "C:/Program Files",
+]
+bash    = "off"      # Windows: no OS-level sandbox for bash; rely on Permissions instead
+network = true       # threatintel needs outbound HTTPS
+
+# ---------------------------------------------------------------------------
+# Permissions: default to asking; whitelist intel-feed domains and KB writes.
+# Reasonix applies these *before* the sandbox — denying at the permission layer
+# is cheaper than letting the tool start and then blocking at the OS layer.
+# ---------------------------------------------------------------------------
+[permissions]
+mode  = "ask"
+allow = [
+  "Read(D:/chengxu/Reasonix/mvp/**)",
+  "Glob(D:/chengxu/Reasonix/mvp/**)",
+  "Grep(D:/chengxu/Reasonix/mvp/**)",
+  # Outbound intel sources (whitelist by domain)
+  "WebFetch(services.nvd.nist.gov)",
+  "WebFetch(cisa.gov)",
+  "WebFetch(www.exploit-db.com)",
+  "WebFetch(gitlab.com/exploit-database/*)",
+  "WebFetch(api.github.com)",
+  "WebFetch(raw.githubusercontent.com)",
+  # KB writes are mediated by the plugin contract; allow plugin tool calls
+  # by their registered name without per-arg matching.
+  "mcp__seckb__kb_ingest",
+  "mcp__case__evidence_add",
+  "mcp__case__case_open",
+  "mcp__case__case_verdict",
+  "mcp__case__case_close",
+]
+deny = [
+  # Destructive shell commands — never auto-allow
+  "Bash(rm -rf*)",
+  "Bash(curl * | sh*)",
+  "Bash(:(){:|:&};:*)",
+  "Bash(del /f /s /q*)",
+  "Bash(format*)",
+  "Bash(rd /s /q*)",
+  # Writes outside mvp/
+  "Write(C:/Windows/**)",
+  "Write(C:/Program Files/**)",
+  "Write(D:/chengxu/Reasonix/internal/**)",
+  "Write(D:/chengxu/Reasonix/cmd/**)",
+  # Network egress outside the intel whitelist
+  "WebFetch(localhost)",
+  "WebFetch(127.0.0.1)",
+  "WebFetch(192.168.*)",
+  "WebFetch(10.*)",
+]
+
+# ---------------------------------------------------------------------------
+# Skills: extra skill roots so the MVP `threat-intel-collector` is discoverable
+# in addition to the built-in `security-analyst` skill shipped at the project
+# root (.reasonix/skills/).
+# ---------------------------------------------------------------------------
+[skills]
+paths = ["./mvp/.reasonix/skills"]
+
+# ---------------------------------------------------------------------------
+# External MCP plugins
+# ---------------------------------------------------------------------------
+[[plugins]]
+name    = "case"
+command = "reasonix-plugin-case"
+args    = ["-db", "D:/chengxu/Reasonix/mvp/case.db"]
+startup_timeout_seconds = 15
+
+[[plugins]]
+name    = "seckb"
+command = "reasonix-plugin-seckb"
+args    = ["-db", "D:/chengxu/Reasonix/mvp/seckb.db"]
+# Optional: enable embedding rerank. env map supports ${VAR} expansion so the
+# API key stays out of the TOML file.
+env = {
+  REASONIX_SECKB_EMBED_URL     = "https://api.deepseek.com/v1/embeddings",
+  REASONIX_SECKB_EMBED_MODEL   = "BAAI/bge-m3",
+  REASONIX_SECKB_EMBED_API_KEY = "${DEEPSEEK_API_KEY}",
+}
+startup_timeout_seconds = 15
+
+[[plugins]]
+name    = "threatintel"
+command = "reasonix-plugin-threatintel"
+args    = ["-cache-db", "D:/chengxu/Reasonix/mvp/threatintel-cache.db"]
+env = {
+  # NVD API key (free, optional; lifts 5/30s limit to 50/30s).
+  # Get one at https://nvd.nist.gov/developers/request-an-api-key
+  REASONIX_THREATINTEL_NVD_API_KEY = "${NVD_API_KEY:-}",
+  # GitHub PAT (optional; lifts 60/h rate limit to 5000/h).
+  REASONIX_THREATINTEL_GITHUB_TOKEN = "${GITHUB_TOKEN:-}",
+}
+startup_timeout_seconds = 15
+call_timeout_seconds    = 60

@@ -1,0 +1,109 @@
+AiSOC 当前问题与阻塞清单
+生成时间：2026-09-20 15:1x（宿主本地时间）
+范围：6657 大脑侧相关工作，含已做改动、遗留问题、待他人配合事项
+
+====================================================
+〇、一句话总览
+====================================================
+大脑（6657）本身健康、代码侧改动已完成并经单测/端到端验证；
+**外部依赖全部不可用**（4 个子智能体、TIR、以及 RAG 自身的 chromadb 兼容问题）
+→ 目前"能开面板、能看到状态"，但**下发任务会失败**、**RAG 检索返回错误**。
+
+====================================================
+一、P0 阻塞：4 个子智能体全部不在线
+====================================================
+实测（/status 探测）：
+    8786 pentest   → 连接失败
+    8788 logaudit  → 连接失败
+    8789 intel     → 连接失败
+    8090 TIR       → 连接失败
+影响：任何任务下发都会在"派活给部件"这一步失败；多智能体协作无法演示。
+归属：这些部件由**共享机上其他成员**部署（此前观察到 wangwei / linchen 等用户）。
+      大脑侧的 registry.json 只是"指向"，无法自行拉起。
+需要谁做：部件维护者，在他们自己的环境里启动部件进程。
+关键参数（两侧必须一致）：
+    → registry.json: {"pentest":{"port":8786,"auth":"bearer"},
+                      "logaudit":{"port":8788,"auth":"cookie"},
+                      "intel":{"port":8789,"auth":"bearer"}}
+    → 部件启动：reasonix serve --addr 127.0.0.1:<port> --auth token --token <token>
+    → TIR 由 settings.TIR_BASE_URL 指定（默认 http://127.0.0.1:8090）
+
+====================================================
+二、P0 阻塞：RAG 检索不可用（chromadb 兼容 bug）
+====================================================
+现象：
+    GET /api/rag/search?q=SQL注入&k=1
+    → {"error":"检索失败: 'str' object is not callable"}
+    启动日志：WARNING: [RAG] 后台播种异常: 'str' object is not callable
+根因（已定位）：
+    chromadb 1.5 与自写 embedding 对象的**持久化配置不兼容**——
+    chroma_data/ 里 collection 记录的 embedding 配置，在新进程反序列化时
+    被当作可调用对象调用（实际是 str）→ 抛错。
+    9/8 首次建库的那个进程可用；此后**每次重启都失败**。
+历史绕法（不可持续）：删掉 chroma_data 重建 → 当次可用，下次重启又坏。
+影响：RAG 检索端点、对话知识注入、verdict 的 rag_knowledge 注入全部空转。
+说明：此问题在 9/8 就已存在，当时用"重建库"临时绕过，**未根治**；
+      9/19 用户明确选择"先不动 RAG"，故保持现状。
+可选修法（待用户决定）：
+    A) 彻底弃用 chroma 的向量能力，seed 33 条知识改存本地 JSON，
+       检索走已实现的 _keyword_scores 关键词打分
+       （推荐：我们本来就不用 chroma 的向量检索，摆脱兼容坑，重启必好）
+    B) 保留 chroma，启动时检测配置不兼容则自动重建 collection + 重灌 seed
+    C) 继续不管
+
+====================================================
+三、P1 待确认：adapter 的 tool_events 实际不存在
+====================================================
+背景：收到《agent 工具事件接入 6657 总线》文档，声称：
+    · reasonix 4523 的 /events 有 tool_dispatch/tool_progress/tool_result
+    · adapter 8786 的 /status 已新增 tool_events 字段
+大脑侧已完成修复（见第四节），并可用 mock 端到端验证通过。
+但实测发现文档描述与当前环境不符：
+  1) 8786 的 /status 返回 {"task_id":...,"status":"running","running":false}
+     —— **没有 tool_events 字段**（文档 §2.1 声称有）
+  2) 8786 的 /events 需要鉴权，裸访问返回 {"error":"unauthorized"}
+  3) 8786 上跑的实际是 reasonix 自身的 serve（--addr 127.0.0.1:4523），
+     与文档描述的"adapter 8786"不是同一个东西（另有一个 `python3 .adapter.py` 进程）
+结论：**"agent/adapter 侧已就绪"目前无法证实**。
+      大脑侧的转发逻辑本身正确，但若上游不发工具事件、也不提供 tool_events，
+      前端工具卡片仍然会是空白。
+需要谁做：adapter 维护者确认/部署带 tool_events 的版本，并告知 8786 的真实服务身份。
+
+====================================================
+四、已完成（无需再动）
+====================================================
+1) 工具事件接入 6657 总线（orchestrator/__init__.py）
+   - _normalize_tool_event()：兼容 reasonix 原生 tool{} 与 adapter 平铺两形态，
+     tool_call 归并为 tool_dispatch，args 截 500 / output 截 1000
+   - wait_turn_done 实时把工具事件 publish 为 agent_tool 事件（含 domain、ts 去重）
+   - _publish_status_tool_events()：turn 结束后从 /status.tool_events 按 ts 去重补齐
+   - 测试：tests/test_agent_tool_events.py 9/9 通过
+   - 端到端：用 mock 部件验证，总线收到完整 dispatch→progress→result 三条
+   验证方式（待真实部件在线后自验）：
+     curl -N "http://127.0.0.1:6657/api/stream" | grep agent_tool
+2) 对话链路 RAG 接线（api/__init__.py）与 verdict RAG 注入（verdict/__init__.py）
+   —— 代码已完成并有测试（tests/test_rag_chat.py、test_rag_verdict.py），
+      但受第二节 chromadb 问题影响，运行时空转。
+3) 只读检索端点 GET /api/rag/search（供前端 Demo 调用，同样受第二节影响）
+4) create_task 的 req.task 丢失修复（params["task"] 合并）
+5) DeepSeek API key 已更新并验证可用（.env，实际 LLM 调用返回 200）
+
+====================================================
+五、已知环境风险（非代码问题）
+====================================================
+1) 6657 与服务是跑在沙箱会话里的，**随会话回收或整机重启会消失**
+   （观察：9/8 起服务多次死亡，9/19 12:35 一次整机重启把最后实例带走）
+   建议：在你自己的 ssh 终端用 setsid nohup 拉起，绑定到宿主 init
+2) 共享机上端口会被他人抢占：
+   实测 8786 被 reasonix serve(4523) 占用、我起 mock 时 bind 失败
+3) 同一时刻曾出现**多个 api.main 实例**并存抢 6657
+   （日志：Errno 98 address already in use）→ 重启前应先确认旧实例已彻底退出
+
+====================================================
+六、我需要的配合（按优先级）
+====================================================
+P0-1  请部件维护者拉起 8786/8788/8789/8090（或明确它们已废弃/改端口）
+P0-2  请确认 RAG 修法选 A / B / C（我倾向 A，改动小且能根治）
+P1-1  请 adapter 维护者确认：/status 是否真有 tool_events、8786 是哪套服务
+P1-2  若前端要做工具卡片，需确认前端订阅的字段契约（建议直接用
+      payload.tool_event：{kind,name,args,output,err,readOnly,ts}）

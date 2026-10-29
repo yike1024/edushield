@@ -1,0 +1,20 @@
+{
+  "pentest": {
+    "host": "127.0.0.1",
+    "port": 8786,
+    "token": "sk-REPLACE_WITH_PART_TOKEN",
+    "auth": "bearer"
+  },
+  "logaudit": {
+    "host": "127.0.0.1",
+    "port": 8788,
+    "token": "sk-REPLACE_WITH_PART_TOKEN",
+    "auth": "cookie"
+  },
+  "intel": {
+    "host": "127.0.0.1",
+    "port": 8789,
+    "token": "sk-REPLACE_WITH_PART_TOKEN",
+    "auth": "bearer"
+  }
+}

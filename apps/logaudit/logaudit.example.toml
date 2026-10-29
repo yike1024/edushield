@@ -1,0 +1,18 @@
+# Logaudit part configuration.
+# Copy to ~/aisoc/parts/logaudit/reasonix.toml or to the serve working directory.
+default_model = "deepseek/deepseek-v4-flash"
+
+[[providers]]
+name        = "deepseek"
+kind        = "openai"
+base_url    = "https://api.deepseek.com"
+models      = ["deepseek-v4-flash", "deepseek-v4-pro"]
+default     = "deepseek-v4-flash"
+api_key_env = "DEEPSEEK_API_KEY"
+context_window = 1000000
+
+[sandbox]
+bash = "off"
+
+[tools]
+enabled = ["log_ingest", "anomaly_detect", "correlation", "findings", "report", "read_file", "grep", "bash"]

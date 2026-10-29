@@ -1,77 +1,68 @@
-# Build artifacts
-/bin/
-/dist/
-/stage/
-/npm/.stage/
-/reasonix
-/reasonix.exe
+# ============================================================================
+# 原则：环境变量（可能含密钥）与运行产物一律不进库；源码、模板、样例进库
+# ============================================================================
 
-# Website (Astro) build output
-/site/dist/
-/site/.astro/
-/site/_preview.png
-
-# Go test/build scratch
-*.test
-*.out
-*.coverprofile
-coverage.out
-cpu.prof
-mem.prof
-
-# Wails desktop artifacts
-/desktop/build/*
-!/desktop/build/appicon.png
-!/desktop/build/appicon.svg
-/desktop/desktop
-/desktop/frontend/dist/*
-!/desktop/frontend/dist/.gitkeep
-/desktop/frontend/sourcemaps/
-/desktop/frontend/wailsjs/
-/desktop/frontend/package.json.md5
-
-# Environment / local config (reasonix.example.toml is the shared template)
+# ---- 环境变量 / 密钥 ----
 .env
-.env.local
-*.local
-/reasonix.toml
-/desktop/.env
-/desktop/reasonix.toml
+.env.*
+!.env.example
+!*.env.example
+# 前端仓库自带的公开默认值（只有 VITE_ 前缀）
+!apps/frontend/desktop/frontend/.env
+config/env/shared.env
+config/env/*.env
+# 由 .tmpl 渲染，含真实 token
+config/registry/brain.registry.json
 
-# Node / frontend dependencies and caches
+# ---- 运行日志 / 进程状态 ----
+logs/
+!logs/.gitkeep
+.run/
+*.log
+!apps/**/logaudit.example.toml
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Node / 前端 ----
 node_modules/
-.pnpm-store/
-.npm/
+apps/frontend/desktop/frontend/dist/
+apps/frontend/desktop/frontend/sourcemaps/
+apps/frontend/desktop/frontend/.env.local
 
-# Project-local EduShield state; keep the checked-in review command.
-/.reasonix/*
-!/.reasonix/commands/
-!/.reasonix/commands/review.md
+# ---- Go 构建产物（各域自己 build 出的 reasonix 二进制）----
+apps/*/bin/reasonix
+apps/*/bin/reasonix.exe
+apps/*/bin/*.test
+apps/*/.tools/
+apps/*/gomodcache/
+apps/*/gocache/
 
-# CodeGraph per-project index (rebuilt locally; never committed)
-.codegraph/
+# ---- 运行时数据（可随时删掉重建）----
+apps/brain/data/brain.sqlite3
+apps/brain/data/attachments/
+apps/brain/chroma_data/
+apps/tir/storage/data/
+apps/tir/storage/logs/
+apps/logaudit/.serve-home/
+apps/logaudit/logaudit-workdir/
+apps/pentest/.reasonix-state/
+apps/intel/intel-agent/.reasonix-state/
+# 该样例被 Windows Defender 判定拦截，git 无法读取索引，暂不入库
+apps/brain/data/samples/xdr_alerts_sample.json
 
-# Editor / OS
+# ---- 平台杂项 ----
 .DS_Store
 Thumbs.db
+desktop.ini
+*.swp
 .idea/
 .vscode/
-/site/public/av/
-
-benchmarks/context-maintenance-e2e/run/
-
-# Local scratch
-temp/
-
-# Local scratch data / probe logs (never commit)
-.tmp-*
-*.tar.gz
-/go-local/
-/fetch
-__pycache__/
-*.pyc
-.adapter-logs/
-.reasonix-home/
-.trae/
-desktop/frontend/.trae/
-desktop/frontend/.write-test
+!.vscode/extensions.json
